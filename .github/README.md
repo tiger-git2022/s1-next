@@ -1,4 +1,4 @@
-# S1 Next Goose(自用)（tiger-git2022/s1-next）
+# S1 Next Goose（tiger-git2022/s1-next）
 
 <p align="center">
   <a href="https://github.com/tiger-git2022/s1-next/releases/latest"><img src="https://img.shields.io/github/v/release/tiger-git2022/s1-next?style=for-the-badge&label=%E4%B8%8B%E8%BD%BD%E6%9C%80%E6%96%B0%E7%89%88%20%2F%20Download&color=2ea44f" alt="下载最新版 / Download latest"></a>
@@ -24,7 +24,7 @@
 
 <https://github.com/tiger-git2022/s1-next/releases/latest>
 
-包名 `me.ykrank.s1next.custom`，应用名「S1 Next Goose(自用)」，可以和官方版（`me.ykrank.s1next`）同时安装。两者数据不互通：第一次需要重新登录；浏览记录可以在旧版「设置 → 备份 → 备份」导出，再在自用版「还原」。
+包名 `me.ykrank.s1next.custom`，应用名和图标都与官方版相同（「S1 Next Goose」），可以和官方版（`me.ykrank.s1next`）同时安装，在系统「应用信息」里看包名区分。两者数据不互通：第一次需要重新登录；浏览记录可以在旧版「设置 → 备份 → 备份」导出，再在自用版「还原」。
 
 ### 版本号
 
