@@ -1,0 +1,226 @@
+# Fork (tiger-git2022/s1-next): build the signed custom APK and publish it as a GitHub Release.
+#
+# Version scheme (same as tiger-git2022/nga-client and tiger-git2022/mihon): the fork's own semantic
+# version, tag/versionName "vX.Y.Z". .github/fork-version holds X.Y: a pull request with a new feature
+# (or an upstream update) raises Y, a big change raises X. Z counts the releases of X.Y from 0, so a fix
+# needs no edit. versionCode X * 10000000 + Y * 10000 + Z, above upstream's own versionCode.
+# update.json is uploaded for an in-app update check, like nga-client.
+name: Tiger Release
+
+on:
+  push:
+    branches:
+      - custom
+    paths-ignore:
+      - '**.md'
+      - '.github/ISSUE_TEMPLATE/**'
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Release even if this commit has already been released'
+        type: boolean
+        default: false
+  workflow_call:
+    inputs:
+      ref:
+        description: 'Branch to release'
+        type: string
+        default: custom
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build & publish release
+    runs-on: ubuntu-26.04
+    # One release at a time, so build numbers never collide
+    concurrency:
+      group: tiger-release
+      cancel-in-progress: false
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+          fetch-depth: 0
+
+      - name: Compute version
+        id: version
+        env:
+          FORCE: ${{ inputs.force }}
+        run: |
+          set -euo pipefail
+          git fetch --force --tags origin
+
+          existing=$(git tag --points-at HEAD --list 'v[0-9]*' | head -n 1)
+          if [ -n "$existing" ] && [ "$FORCE" != "true" ]; then
+            echo "Commit $(git rev-parse --short HEAD) was already released as $existing, skipping."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Upstream versionName is "$appVersionName.$appVersionCode", such as 3.3.95
+          upstream_base=$(sed -nE 's/^val appVersionName = "([^"]+)".*/\1/p' app/build.gradle.kts | head -n 1)
+          upstream_code=$(sed -nE 's/^val appVersionCode = ([0-9]+).*/\1/p' app/build.gradle.kts | head -n 1)
+          if [ -z "$upstream_base" ] || [ -z "$upstream_code" ]; then
+            echo "::error::Could not read appVersionName / appVersionCode from app/build.gradle.kts"
+            exit 1
+          fi
+          upstream_name="$upstream_base.$upstream_code"
+          series=$(tr -d '[:space:]' < .github/fork-version)
+          if ! [[ "$series" =~ ^[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::.github/fork-version must hold MAJOR.MINOR, such as 1.0, not '$series'"
+            exit 1
+          fi
+          last=$(git tag --list "v${series}.*" | sed "s/^v${series}\.//" | grep -E '^[0-9]+$' | sort -n | tail -n 1 || true)
+          if [ -n "$last" ]; then patch=$(( last + 1 )); else patch=0; fi
+          version_name="$series.$patch"
+          # A lower X.Y in .github/fork-version would publish a release older than the latest one
+          newest=$(git tag --list 'v*' | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n 1 || true)
+          if [ -n "$newest" ] && [ "$(printf '%s\n' "$newest" "v$version_name" | sort -V | tail -n 1)" != "v$version_name" ]; then
+            echo "::error::v$version_name would be older than $newest, raise .github/fork-version"
+            exit 1
+          fi
+          IFS=. read -r major minor <<< "$series"
+          version_code=$(( major * 10000000 + minor * 10000 + patch ))
+          previous=$(git describe --tags --abbrev=0 --match 'v[0-9]*' HEAD 2>/dev/null || true)
+
+          {
+            echo "skip=false"
+            echo "upstream_name=$upstream_name"
+            echo "version_name=$version_name"
+            echo "version_code=$version_code"
+            echo "tag=v$version_name"
+            echo "previous=$previous"
+          } >> "$GITHUB_OUTPUT"
+          echo "Releasing v$version_name (versionCode $version_code), upstream $upstream_name, previous release: ${previous:-none}"
+
+      - name: Set up JDK
+        if: steps.version.outputs.skip != 'true'
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          java-version-file: .github/.java-version
+          distribution: temurin
+
+      - name: Set up Gradle
+        if: steps.version.outputs.skip != 'true'
+        uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+
+      - name: Decode signing keystore
+        if: steps.version.outputs.skip != 'true'
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "::error::Secret KEYSTORE_BASE64 is not set"
+            exit 1
+          fi
+          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.keystore"
+          # Read by app/build.gradle.kts through -Ps1SigningFile
+          {
+            echo "storeFile=$RUNNER_TEMP/release.keystore"
+            echo "storePassword=$KEYSTORE_PASSWORD"
+            echo "keyAlias=$KEY_ALIAS"
+            echo "keyPassword=$KEY_PASSWORD"
+          } > "$RUNNER_TEMP/signing.properties"
+
+          hash=$(keytool -exportcert -alias "$KEY_ALIAS" -keystore "$RUNNER_TEMP/release.keystore" \
+            -storepass "$KEYSTORE_PASSWORD" | openssl sha1 -binary | openssl base64 -A)
+          echo "SIGNATURE_HASH=$hash" >> "$GITHUB_ENV"
+
+      - name: Build signed custom APK
+        if: steps.version.outputs.skip != 'true'
+        run: >-
+          ./gradlew :app:assembleNormalCustom
+          -Ps1SigningFile=${{ runner.temp }}/signing.properties
+          -Ptiger.version=${{ steps.version.outputs.version_name }}
+
+      - name: Collect APK
+        if: steps.version.outputs.skip != 'true'
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          set -euo pipefail
+          out=app/build/outputs/apk/normal/custom
+          mkdir -p dist
+          mv "$out/s1next-custom-$TAG.apk" "dist/s1next-custom-$TAG.apk"
+          ls -l dist
+
+          # Make sure the APK is signed with the release key
+          apksigner=$(ls -d "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -n 1)
+          "$apksigner" verify --print-certs "dist/s1next-custom-$TAG.apk" | tee "$RUNNER_TEMP/certs.txt"
+          if grep -q "CN=Android Debug" "$RUNNER_TEMP/certs.txt"; then
+            echo "::error::APK is signed with the debug key"
+            exit 1
+          fi
+          rm -f "$RUNNER_TEMP/signing.properties" "$RUNNER_TEMP/release.keystore"
+
+      # Notes are Chinese first, then English: commit / PR titles are written as "中文 / English".
+      - name: Write release notes
+        if: steps.version.outputs.skip != 'true'
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+          PREVIOUS: ${{ steps.version.outputs.previous }}
+          UPSTREAM: ${{ steps.version.outputs.upstream_name }}
+          VERSION_CODE: ${{ steps.version.outputs.version_code }}
+        run: |
+          set -euo pipefail
+          if [ -n "$PREVIOUS" ]; then
+            changes=$(git log --first-parent --pretty='- %s (%h)' "$PREVIOUS..HEAD")
+          else
+            changes=$(git log --first-parent --pretty='- %s (%h)' -n 20 HEAD)
+          fi
+          cat > release-notes.md <<EOF
+          基于上游 [S1 Next $UPSTREAM](https://github.com/ykrank/S1-Next)，论坛域名迁移到 stage1st.com，附加自动黑魔法、阅读进度和帖子末尾闪退修复。
+
+          ### 本次更新
+          ${changes:-- 无代码改动}
+
+          ### 下载
+          \`s1next-custom-$TAG.apk\`
+
+          包名 \`me.ykrank.s1next.custom\`，应用名「S1 Next Goose(自用)」，versionCode $VERSION_CODE，可与官方版同时安装。
+
+          ---
+
+          Based on upstream [S1 Next $UPSTREAM](https://github.com/ykrank/S1-Next), moved to the stage1st.com domain, with automatic dark magic and fixes for reading progress and a crash near the end of threads. The changes are listed above.
+
+          **Download:** \`s1next-custom-$TAG.apk\`. Package \`me.ykrank.s1next.custom\`, versionCode $VERSION_CODE, installs beside the official app.
+
+          <details><summary>签名信息 / Signing info</summary>
+
+          - 签名证书 SHA-1（Base64）/ Signing certificate SHA-1 (Base64)：\`$SIGNATURE_HASH\`
+
+          </details>
+          EOF
+          cat release-notes.md
+
+      - name: Publish GitHub Release
+        if: steps.version.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+          VERSION_CODE: ${{ steps.version.outputs.version_code }}
+        run: |
+          set -euo pipefail
+          gh release create "$TAG" dist/*.apk \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$(git rev-parse HEAD)" \
+            --title "S1 Next Goose(自用) $TAG" \
+            --notes-file release-notes.md \
+            --latest
+
+          # For an in-app update check: served from /releases/latest/download/update.json like any
+          # release download, without api.github.com's limit of 60 requests an hour per IP.
+          gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TAG" --jq "{
+            tag_name, body, html_url, version_code: $VERSION_CODE,
+            assets: [.assets[] | select(.name | endswith(\".apk\")) | {name, browser_download_url}]
+          }" > update.json
+          cat update.json
+          gh release upload "$TAG" update.json --repo "$GITHUB_REPOSITORY" --clobber
