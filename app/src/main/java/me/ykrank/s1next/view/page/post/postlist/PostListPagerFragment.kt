@@ -19,17 +19,21 @@ import com.github.ykrank.androidtools.data.Resource
 import com.github.ykrank.androidtools.ui.internal.LoadingViewModelBindingDelegate
 import com.github.ykrank.androidtools.util.L
 import com.github.ykrank.androidtools.util.LooperUtil
+import com.github.ykrank.androidtools.util.MathUtil
 import com.github.ykrank.androidtools.util.RxJavaUtil
 import com.github.ykrank.androidtools.widget.recycleview.StartSnapLinearLayoutManager
 import com.google.android.material.snackbar.Snackbar
 import io.reactivex.Single
 import io.reactivex.disposables.Disposable
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.ykrank.s1next.App
 import me.ykrank.s1next.R
+import me.ykrank.s1next.data.api.app.AppService
+import me.ykrank.s1next.data.api.app.model.AppPostsWrapper
 import me.ykrank.s1next.data.api.model.Post
 import me.ykrank.s1next.data.api.model.Thread
 import me.ykrank.s1next.data.api.model.collection.Posts
@@ -47,6 +51,7 @@ import me.ykrank.s1next.view.internal.PagerScrollState
 import me.ykrank.s1next.view.page.app.AppPostListActivity
 import me.ykrank.s1next.view.page.post.adapter.PostListRecyclerViewAdapter
 import me.ykrank.s1next.view.page.post.postlist.PostListPagerFragment.PagerCallback
+import me.ykrank.s1next.util.JsonUtil
 import java.util.*
 import javax.inject.Inject
 
@@ -64,6 +69,15 @@ class PostListPagerFragment : BaseRecyclerViewFragment<PostsWrapper>(),
 
     @Inject
     internal lateinit var objectMapper: ObjectMapper
+
+    @Inject
+    internal lateinit var appService: AppService
+
+    /**
+     * Fork：自动黑魔法，被屏蔽楼层 pid -> 通过 App 接口拿到的原文
+     */
+    private val unbannedReplies = HashMap<Int, String>()
+    private var autoDarkMagicJob: Job? = null
 
     private var mThreadId: String? = null
     private var mPageNum: Int = 0
@@ -136,13 +150,18 @@ class PostListPagerFragment : BaseRecyclerViewFragment<PostsWrapper>(),
                 recyclerView: androidx.recyclerview.widget.RecyclerView,
                 newState: Int
             ) {
-                if (!isPullUpToRefresh
-                    && mPageNum == mPagerCallback?.getTotalPages()
-                    && !isLoading
-                    && mRecyclerAdapter.itemCount != 0
-                    && !mRecyclerView.canScrollVertically(1)
-                ) {
-                    startPullToRefresh()
+                if (!shouldPullUpToRefresh()) {
+                    return
+                }
+                // Fork: onScrollStateChanged can be dispatched in the middle of a layout pass
+                // (e.g. a TextView gaining focus while binding triggers requestChildRectangleOnScreen
+                // -> smoothScrollBy). Inserting the footer item then throws
+                // "Cannot call this method while RecyclerView is computing a layout or scrolling",
+                // so defer the adapter change until the current pass has finished.
+                recyclerView.post {
+                    if (view != null && !recyclerView.isComputingLayout && shouldPullUpToRefresh()) {
+                        startPullToRefresh()
+                    }
                 }
             }
         })
@@ -187,6 +206,14 @@ class PostListPagerFragment : BaseRecyclerViewFragment<PostsWrapper>(),
         return LoadingViewModelBindingDelegateQuickSidebarImpl(binding)
     }
 
+    private fun shouldPullUpToRefresh(): Boolean {
+        return !isPullUpToRefresh
+                && mPageNum == mPagerCallback?.getTotalPages()
+                && !isLoading
+                && mRecyclerAdapter.itemCount != 0
+                && !mRecyclerView.canScrollVertically(1)
+    }
+
     override fun startPullToRefresh() {
         if (isPullUpToRefreshValid) {
             mRecyclerAdapter.showFooterProgress()
@@ -227,6 +254,9 @@ class PostListPagerFragment : BaseRecyclerViewFragment<PostsWrapper>(),
             } else {
                 mLayoutManager.scrollToPositionWithOffset(position, offset)
             }
+            // Fork: already applied, don't keep it as a pending progress (see curReadProgress)
+            this.readProgress = null
+            scrollState?.state = PagerScrollState.FREE
         }
     }
 
@@ -248,10 +278,20 @@ class PostListPagerFragment : BaseRecyclerViewFragment<PostsWrapper>(),
 
     internal val curReadProgress: ReadProgress?
         get() {
-            if (isLoading) {
+            // Fork：上次的进度还没恢复到列表上（数据还没加载完）就离开了：保留原进度，避免被覆盖成顶部
+            val pendingProgress = readProgress
+            if (pendingProgress != null && scrollState?.state == PagerScrollState.BEFORE_SCROLL_POSITION) {
+                return pendingProgress
+            }
+            // 以前只要在加载中（先显示缓存、网络数据还没回来，或上拉加载更多）就不记录进度，
+            // 此时退出会回到更早的旧进度。只要列表上已有帖子，就照常记录。
+            if (!this::mRecyclerAdapter.isInitialized || mRecyclerAdapter.dataSet.none { it is Post }) {
                 return null
             }
             val itemPosition = findNowItemPosition()
+            if (itemPosition.first == androidx.recyclerview.widget.RecyclerView.NO_POSITION) {
+                return null
+            }
             return ReadProgress(
                 mThreadId?.toInt()
                     ?: 0, mPageNum, itemPosition.first!!, itemPosition.second!!
@@ -373,6 +413,7 @@ class PostListPagerFragment : BaseRecyclerViewFragment<PostsWrapper>(),
                         arguments?.putString(ARG_QUOTE_POST_ID, null)
                     }
                 }
+                autoCastDarkMagic(postList)
             }
 
             mPagerCallback?.setThreadInfo(postListInfo)
@@ -380,6 +421,71 @@ class PostListPagerFragment : BaseRecyclerViewFragment<PostsWrapper>(),
                 mPagerCallback?.setupThreadAttachment(it)
             }
         }
+    }
+
+    /**
+     * Fork：自动施放黑魔法。楼层作者被禁止时，网页接口只返回“内容自动屏蔽”，
+     * 若已登录 App 接口，则直接用 App 接口取原文替换，无需手动点击按钮。
+     */
+    private fun autoCastDarkMagic(postList: List<Post>) {
+        val threadId = mThreadId ?: return
+        if (!mUser.isAppLogged || postList.none { it.banned }) {
+            return
+        }
+        autoDarkMagicJob?.cancel()
+        autoDarkMagicJob = lifecycleScope.launch {
+            val replies = try {
+                withContext(Dispatchers.IO) {
+                    fetchUnbannedReplies(threadId, postList.filter { it.banned })
+                }
+            } catch (e: Exception) {
+                L.e("AutoDarkMagic", e)
+                return@launch
+            }
+            if (replies.isEmpty() || view == null) {
+                return@launch
+            }
+            val newDataSet = mRecyclerAdapter.dataSet.map { item ->
+                val reply = (item as? Post)?.takeIf { it.banned }?.let { replies[it.id] }
+                if (item is Post && reply != null) {
+                    item.clone().apply {
+                        this.reply = reply
+                        this.banned = false
+                    }
+                } else {
+                    item
+                }
+            }
+            mRecyclerAdapter.diffNewDataSet(newDataSet, false)
+        }
+    }
+
+    /**
+     * Fork：App 接口的分页大小可能与网页接口不同，先取同页，缺的再按楼层号换算页码补取（最多 3 页）。
+     */
+    private fun fetchUnbannedReplies(threadId: String, banned: List<Post>): Map<Int, String> {
+        val missing = banned.map { it.id }.filterNot { unbannedReplies.containsKey(it) }.toMutableSet()
+        val triedPages = mutableSetOf<Int>()
+        var page = mPageNum
+        while (missing.isNotEmpty() && triedPages.size < 3 && triedPages.add(page)) {
+            val data = appService.getPostsWrapper(mUser.appSecureToken, threadId, page)
+                .compose(JsonUtil.jsonSingleTransformer(AppPostsWrapper::class.java))
+                .blockingGet()
+                .data ?: break
+            data.list.forEach { appPost ->
+                val message = appPost.message
+                if (appPost.pid in missing && !message.isNullOrBlank()) {
+                    unbannedReplies[appPost.pid] = message
+                    missing.remove(appPost.pid)
+                }
+            }
+            val nextFloor = banned.firstOrNull { it.id in missing }?.number?.toIntOrNull()
+            if (nextFloor == null || data.pageSize <= 0) {
+                break
+            }
+            page = MathUtil.divide(nextFloor, data.pageSize)
+        }
+        return banned.mapNotNull { post -> unbannedReplies[post.id]?.let { post.id to it } }.toMap()
     }
 
     override fun onError(throwable: Throwable) {
