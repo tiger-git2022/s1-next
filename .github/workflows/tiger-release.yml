@@ -185,7 +185,7 @@ jobs:
           ### 下载
           \`s1next-custom-$TAG.apk\`
 
-          包名 \`me.ykrank.s1next.custom\`，应用名「S1 Next Goose(自用)」，versionCode $VERSION_CODE，可与官方版同时安装。
+          包名 \`me.ykrank.s1next.custom\`，应用名「S1 Next Goose」，versionCode $VERSION_CODE，可与官方版同时安装。
 
           ---
 
@@ -212,7 +212,7 @@ jobs:
           gh release create "$TAG" dist/*.apk \
             --repo "$GITHUB_REPOSITORY" \
             --target "$(git rev-parse HEAD)" \
-            --title "S1 Next Goose(自用) $TAG" \
+            --title "S1 Next Goose $TAG" \
             --notes-file release-notes.md \
             --latest
 
