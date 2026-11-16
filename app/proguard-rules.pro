@@ -17,3 +17,11 @@
 -keep public class me.ykrank.s1next.data.db.dbmodel.** { *; }
 -keep public class me.ykrank.s1next.data.cache.dbmodel.Cache { *; }
 
+
+# Fork: OkHttp 5 loads PublicSuffixDatabase.gz via an absolute classpath path
+# (/okhttp3/internal/publicsuffix/PublicSuffixDatabase.gz). R8 repackaging moved it to
+# e.g. P5/publicsuffix/, so cookie handling (app API login) failed. Keep the package name.
+# R8 adapts resource dirs by package prefix, so no okhttp3 package may be repackaged.
+-keeppackagenames okhttp3.**
+-keepnames class okhttp3.**
+-keep class okhttp3.internal.publicsuffix.PublicSuffixDatabase { *; }

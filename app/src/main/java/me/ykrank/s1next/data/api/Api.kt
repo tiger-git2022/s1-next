@@ -6,7 +6,7 @@ import android.webkit.URLUtil
 import okhttp3.HttpUrl
 
 object Api {
-    // *.saraba1st.com was removed from DNS (NXDOMAIN) in 2026-08; the forum now lives on stage1st.com
+    // Fork: *.saraba1st.com was removed from DNS (NXDOMAIN) in 2026-08; the forum now lives on stage1st.com
     const val BASE_HOST = "stage1st.com"
     const val BASE_URL = "https://$BASE_HOST/2b/"
     private const val BASE_AVATAR_URL = "https://avatar.stage1st.com/"
