@@ -74,7 +74,7 @@
 - `app/src/main/java/me/ykrank/s1next/data/api/Api.kt`、`data/api/app/AppApi.java`、`widget/net/AppDns.kt`、`widget/glide/OkHttpNoAvatarInterceptor.kt`、`data/api/model/PostAttachMent.kt`、`AndroidManifest.xml`：论坛域名
 - `app/src/main/java/me/ykrank/s1next/view/page/post/postlist/PostListPagerFragment.kt`：帖子末尾闪退、阅读进度、自动黑魔法
 - `app/proguard-rules.pro`：保留 okhttp3 包名
-- `app/build.gradle.kts`、`app/src/custom/`：自用版构建类型、版本号、签名
+- `app/build.gradle.kts`、`app/src/custom/`：自用版构建类型、版本号、签名；自用版图标（纯黑背景，修正上游前景图向右下偏 10/12 像素的问题，和图标包里官方版的样子一致）
 
 ## English
 
