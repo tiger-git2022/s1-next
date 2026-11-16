@@ -31,7 +31,7 @@ data class PostAttachment(
     @IgnoredOnParcel
     @get:JsonIgnore
     val realUrl by lazy {
-        if (urlPrefix != null && urlSuffix != null) urlPrefix + urlSuffix else "https://img.saraba1st.com/forum/error"
+        if (urlPrefix != null && urlSuffix != null) urlPrefix + urlSuffix else "https://img.stage1st.com/forum/error"
     }
 
     @IgnoredOnParcel

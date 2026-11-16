@@ -21,6 +21,7 @@ class AppDns(context: Context, baseHostUrl: BaseHostUrl) : BaseDns(baseHostUrl) 
     else HttpDns.getService(context, BuildConfig.HTTP_DNS_ID, BuildConfig.HTTP_DNS_SECRET)//httpdns 解析服务
 
     private val hosts = listOf(
+        "img.stage1st.com",
         "img.saraba1st.com",
         "p.sda1.dev",
     ) + Api.HOST_LIST

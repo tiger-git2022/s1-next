@@ -33,7 +33,7 @@ class OkHttpNoAvatarInterceptor : Interceptor {
         private const val NO_AVATAR_SMALL_PREFIX = "images/noavatar_small.gif"
         private const val NO_AVATAR_MIDDLE_PREFIX = "images/noavatar_middle.gif"
         private const val NO_AVATAR_BIG_PREFIX = "images/noavatar_big.gif"
-        private const val AVATAR_HOST = "avatar.saraba1st.com"
+        private const val AVATAR_HOST = "avatar.stage1st.com"
         private val NO_AVATAR_PREFIXES = arrayOf(
             NO_AVATAR_SMALL_PREFIX, NO_AVATAR_MIDDLE_PREFIX, NO_AVATAR_BIG_PREFIX
         )

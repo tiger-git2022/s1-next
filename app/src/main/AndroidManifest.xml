@@ -15,7 +15,7 @@
             <action android:name="android.intent.action.VIEW" />
             <category android:name="android.intent.category.BROWSABLE" />
             <data
-                android:host="bbs.saraba1st.com"
+                android:host="stage1st.com"
                 android:pathPattern=".*"
                 android:scheme="https" />
         </intent>
@@ -133,6 +133,7 @@
                 <data android:host="bbs.stage1.cc" />
                 <data android:host="stage1st.com" />
                 <data android:host="www.stage1st.com" />
+                <data android:host="bbs.stage1st.com" />
                 <data android:pathPattern=".*" />
             </intent-filter>
         </activity>

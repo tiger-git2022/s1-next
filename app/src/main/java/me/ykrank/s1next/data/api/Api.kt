@@ -6,14 +6,15 @@ import android.webkit.URLUtil
 import okhttp3.HttpUrl
 
 object Api {
-    const val BASE_HOST = "bbs.saraba1st.com"
+    // *.saraba1st.com was removed from DNS (NXDOMAIN) in 2026-08; the forum now lives on stage1st.com
+    const val BASE_HOST = "stage1st.com"
     const val BASE_URL = "https://$BASE_HOST/2b/"
-    private const val BASE_AVATAR_URL = "https://avatar.saraba1st.com/"
+    private const val BASE_AVATAR_URL = "https://avatar.stage1st.com/"
     const val BASE_API_URL = "https://$BASE_HOST/2b/api/mobile/"
-    private const val BASE_STATIC_URL = "https://static.saraba1st.com/"
-    private const val BASE_STATIC_URL_HTTP = "http://static.saraba1st.com/"
+    private const val BASE_STATIC_URL = "https://static.stage1st.com/"
+    private const val BASE_STATIC_URL_HTTP = "http://static.stage1st.com/"
     val HOST_LIST = arrayOf(
-        "bbs.saraba1st.com", "www.saraba1st.com", "stage1st.com", "www.stage1st.com"
+        "stage1st.com", "www.stage1st.com", "bbs.stage1st.com", "bbs.saraba1st.com", "www.saraba1st.com"
     )
     var SUPPORT_HTTPS = true
     private const val RANDOM_IMAGE_URL = "https://ac.stage3rd.com/S1_ACG_randpic.asp"
