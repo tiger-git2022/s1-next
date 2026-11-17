@@ -25,3 +25,6 @@
 -keeppackagenames okhttp3.**
 -keepnames class okhttp3.**
 -keep class okhttp3.internal.publicsuffix.PublicSuffixDatabase { *; }
+
+# Fork: custom drawable referenced by class name from res/drawable-v31/fork_glass_popup.xml
+-keep class me.ykrank.s1next.widget.glass.GlassPopupDrawable { public <init>(); }

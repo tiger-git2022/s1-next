@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Fork（tiger-git2022）：自用版新增的文字 -->
+<resources>
+    <string name="fork_glass_category" translatable="false">玻璃效果</string>
+    <string name="fork_glass_blur" translatable="false">模糊度（dp）</string>
+    <string name="fork_glass_blur_summary" translatable="false">顶栏、悬浮按钮和弹出菜单背后内容的模糊程度，0 为不模糊</string>
+    <string name="fork_glass_opacity" translatable="false">不透明度（%）</string>
+    <string name="fork_glass_opacity_summary" translatable="false">玻璃上叠加的颜色有多浓（顶栏和悬浮按钮叠顶栏颜色，弹出菜单叠白色或黑色），越小越通透，0 为纯模糊</string>
+</resources>

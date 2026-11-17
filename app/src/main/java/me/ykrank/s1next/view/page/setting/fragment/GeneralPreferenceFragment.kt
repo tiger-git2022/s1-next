@@ -53,6 +53,10 @@ class GeneralPreferenceFragment : BasePreferenceFragment(), Preference.OnPrefere
     override fun onCreatePreferences(bundle: Bundle?, s: String?) {
         App.appComponent.inject(this)
         addPreferencesFromResource(R.xml.preference_general)
+        // Fork：玻璃效果设置（Android 12 及以上）
+        if (me.ykrank.s1next.widget.glass.GlassBars.isSupported()) {
+            addPreferencesFromResource(R.xml.preference_fork_glass)
+        }
 
         findPreference<Preference>(getString(R.string.pref_key_downloads))?.onPreferenceClickListener = this
         findPreference<Preference>(getString(R.string.pref_key_blacklists))?.onPreferenceClickListener = this
