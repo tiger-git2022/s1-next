@@ -19,13 +19,14 @@
 - **修复 App 接口登录失败**：R8 混淆把 OkHttp 的 `PublicSuffixDatabase.gz` 挪了位置，处理 Cookie 时报错。
 - **帖子可复制时翻页不再跳回顶部**：原版开启「帖子可复制」后，切换页面会被拉回顶部（开关的提示里也这么写）。原因是楼层滑进屏幕时 TextView 被禁用再启用，获得焦点后让列表滚到自己；现在忽略这种焦点引起的滚动，复制功能不受影响。
 - **玻璃效果**（Android 12 及以上）：论坛首页、帖子列表、帖子页的顶栏和状态栏改成玻璃，内容从下面穿过、模糊透出；顶栏下面两个角是圆角。
-  - 帖子列表和帖子页上滑时顶栏自动收起，下滑放出；进入帖子时不显示回复按钮，顶栏收起后再放出时才出现。
+  - 帖子列表和帖子页上滑时顶栏自动收起（整个滑出屏幕，状态栏同时淡出成透明），下滑放出；进入帖子时不显示回复按钮，顶栏收起后再放出时才出现。
   - 悬浮按钮、下拉刷新按钮是圆形玻璃；三个点菜单、首页「全部」下拉框、子版块列表是圆角玻璃，都从顶栏下沿弹出，不盖住顶栏。
   - 帖子列表不再显示子版块（分类）标签。子版块列表要等帖子列表从网络加载成功后才有，没有时点「子版块」会给提示。
   - 帖子页右侧原来那一列楼层数字换成楼层滚动条：滑动时出现，按住拖动时气泡显示「第几楼/共几楼」。
   - 「数据来自缓存」改成列表顶部的一整行，往下翻会跟着内容滚走。
   - 夜间模式用深灰玻璃（顶栏颜色本身接近黑色，叠在深色内容上看不出玻璃）。
   - 「设置 → 玻璃效果」里可以调模糊度（0–40dp，默认 12），以及顶栏和状态栏的不透明度，白天和夜间分开设（顶栏默认白天 60%、夜间 20%，状态栏默认白天 40%、夜间 20%，0 为纯模糊），改完立即生效。
+- **App 内检查更新**：「设置 → 检查更新」原来打开的是官方版的下载页，现在检查本仓库 Releases 里的最新版本（读取 `update.json`），有新版本就显示更新内容，点「下载」用浏览器下载 APK，覆盖安装。
 - **引用回复失败时显示原因**：论坛不给引用表单时（比如要求实名、没有回复权限），原版只显示「发生了一个未知的错误」，现在显示论坛给出的原话。
 
 `master` 分支与上游保持一致，不在上面开发。
@@ -85,6 +86,7 @@
 - `app/src/main/java/me/ykrank/s1next/view/page/post/postlist/PostListPagerFragment.kt`：帖子末尾闪退、阅读进度、自动黑魔法
 - `view/adapter/delegate/SelectableTextFocusFix.kt`（新文件）、`view/page/post/adapter/PostAdapterDelegate.kt`、`PostBlackAdapterDelegate.kt`、`view/adapter/delegate/AppPostAdapterDelegate.kt`、`view/page/app/AppPostListPagerFragment.kt`、`library/.../StartSnapLinearLayoutManager.kt`、`res/values*/strings.xml`：帖子可复制时翻页不跳回顶部
 - `view/dialog/requestdialog/ReplyRequestDialogFragment.kt`：引用回复失败时显示论坛给出的原因
+- `util/ForkUpdate.kt`（新文件）、`view/page/setting/fragment/GeneralPreferenceFragment.kt`：自用版检查更新
 - `widget/glass/`（新目录）、`res/xml/preference_fork_glass.xml`、`res/values/fork_*.xml`、`res/values-v31/fork_styles.xml`、`res/drawable-v31/fork_glass_popup.xml`：玻璃效果；挂载点 `view/activity/BaseActivity.kt`（setupToolbar）、`view/fragment/BaseRecyclerViewFragment.kt`（列表顶部内边距）、`view/internal/CoordinatorLayoutAnchorDelegateImpl.kt`（悬浮按钮）、`view/page/setting/fragment/GeneralPreferenceFragment.kt`（设置项）、`view/activity/ForumActivity.kt`（「全部」下拉框）、`view/activity/ThreadListActivity.kt`（子版块弹窗和提示）、`view/page/post/postlist/PostListPagerFragment.kt`（楼层滚动条）、`view/page/post/postlist/PostListFragment.kt` 和 `view/page/app/AppPostListFragment.kt`（隐藏快速侧边栏开关）、`data/pref/GeneralPreferences.kt`（玻璃效果下关闭快速侧边栏）、`app/proguard-rules.pro`（保留 XML 里按类名引用的 GlassPopupDrawable）
 - `app/proguard-rules.pro`：保留 okhttp3 包名
 - `app/build.gradle.kts`、`app/src/custom/`：自用版构建类型、版本号、签名；自用版图标（纯黑背景，修正上游前景图向右下偏 10/12 像素的问题，和图标包里官方版的样子一致）
@@ -96,6 +98,7 @@ A personal fork of [ykrank/S1-Next](https://github.com/ykrank/S1-Next), a client
 - **Moved to stage1st.com**: all `*.saraba1st.com` hosts are gone from DNS, so upstream fails every request and keeps showing cached data; polls, the dark room and "dark magic" were broken too. Old links in posts are rewritten to the new host.
 - **Automatic dark magic**: posts by banned authors are filled in from the app API automatically when it is logged in.
 - **Glass** (Android 12+): the bars of the forum list, thread list and thread page blur the content scrolling beneath them; the floating button and the overflow menu are glass too. Blur and opacity are adjustable in the settings. The thread list hides its category tabs.
+- **In-app update check**: Settings → Check update reads `update.json` from this repository's latest release instead of opening the official app's download page.
 - **Fixes** for a crash near the end of a thread, reading progress that was not saved while loading, an app API login failure caused by R8 moving OkHttp's `PublicSuffixDatabase.gz`, pages jumping to the top when post text is selectable, and quote replies that only said "unknown error" instead of the forum's reason.
 
 Package `me.ykrank.s1next.custom`, installs beside the official app. Versions are the fork's own `vX.Y.Z` (X.Y in `.github/fork-version`, Z counted by the release workflow), versionCode `X × 10000000 + Y × 10000 + Z`. Releases are built by `tiger-release.yml` on every push to `custom`; `tiger-sync-upstream.yml` merges upstream `master` every 6 hours and releases when it builds, or opens an issue. Secrets: `KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD`, optional `SYNC_TOKEN`. Build locally with JDK 17.

@@ -55,7 +55,7 @@ object GlassBars {
 
     /**
      * 顶栏（含状态栏）的高度，列表据此留出顶部内边距；
-     * 帖子列表和帖子页上滑时收起标题栏（状态栏那条玻璃固定不动），下滑或回到顶部时放出。
+     * 帖子列表和帖子页上滑时收起标题栏（整个滑出屏幕，状态栏那条玻璃同时淡出成透明），下滑或回到顶部时放出。
      */
     class State(
         internal val content: View,
@@ -70,22 +70,36 @@ object GlassBars {
         private val barListeners = mutableListOf<(Boolean) -> Unit>()
         private var barShown = true
 
+        /** 状态栏那条玻璃，跟着标题栏收起淡出 */
+        internal var statusStrip: View? = null
+
+        // 标题栏整个滑出屏幕（连同状态栏后面那段）：状态栏淡出成透明后，后面不能还留着标题栏
+        private val hideDistance get() = appBar.bottom.toFloat()
+
+        /** 状态栏玻璃的透明度跟着标题栏收起的程度走：全显示时不透明，全收起时完全透明 */
+        private fun syncStatusStrip() {
+            val max = hideDistance
+            statusStrip?.alpha = if (max <= 0f) 1f else (1f + appBar.translationY / max).coerceIn(0f, 1f)
+        }
+
         /** 列表滚动 dy 像素：上滑（dy > 0）收起标题栏，下滑放出，到顶时全显示 */
         internal fun onListScrolled(recyclerView: RecyclerView, dy: Int) {
             if (!autoHide) return
             appBar.animate().cancel()
-            val max = appBar.height.toFloat()
+            val max = hideDistance
             val t = if (!recyclerView.canScrollVertically(-1)) 0f
             else (appBar.translationY - dy).coerceIn(-max, 0f)
             appBar.translationY = t
+            syncStatusStrip()
             notifyBar(t > -max / 2)
         }
 
         /** 停止滚动时吸附到全显示或全收起 */
         internal fun onListIdle(recyclerView: RecyclerView) {
             if (!autoHide) return
-            val show = !recyclerView.canScrollVertically(-1) || appBar.translationY > -appBar.height / 2f
-            appBar.animate().translationY(if (show) 0f else -appBar.height.toFloat()).setDuration(160).start()
+            val show = !recyclerView.canScrollVertically(-1) || appBar.translationY > -hideDistance / 2f
+            appBar.animate().translationY(if (show) 0f else -hideDistance).setDuration(160)
+                .setUpdateListener { syncStatusStrip() }.start()
             notifyBar(show)
         }
 
@@ -234,6 +248,7 @@ object GlassBars {
             content, appBar, tintColor, backdropColor,
             autoHide = activity is ThreadListActivity || activity is PostListActivity,
         )
+        state.statusStrip = statusStrip
         activity.window.decorView.setTag(R.id.fork_glass_state, state)
         appBar.addOnLayoutChangeListener { v, _, _, _, _, _, _, _, _ -> state.update(v.bottom) }
         ViewCompat.requestApplyInsets(coordinator)
