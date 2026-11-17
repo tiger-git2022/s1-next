@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Fork（tiger-git2022）：玻璃顶栏的三个点弹出菜单（GlassBars 设为 Toolbar 的 popupTheme） -->
+<resources>
+    <style name="Fork.ThemeOverlay.GlassPopup.Light" parent="ThemeOverlay.AppCompat.Light">
+        <item name="actionOverflowMenuStyle">@style/Fork.Widget.GlassOverflowMenu.Light</item>
+    </style>
+
+    <style name="Fork.ThemeOverlay.GlassPopup.Dark" parent="ThemeOverlay.AppCompat.Dark">
+        <item name="actionOverflowMenuStyle">@style/Fork.Widget.GlassOverflowMenu.Dark</item>
+    </style>
+
+    <style name="Fork.Widget.GlassOverflowMenu.Light" parent="Widget.AppCompat.Light.PopupMenu.Overflow">
+        <item name="android:popupBackground">@drawable/fork_glass_popup</item>
+        <!-- 不要投影：半透明背景会让投影在菜单里面透出一圈灰边 -->
+        <item name="android:popupElevation">0dp</item>
+        <!-- 菜单从顶栏下沿开始弹出，不盖住顶栏 -->
+        <item name="overlapAnchor">false</item>
+        <item name="android:overlapAnchor">false</item>
+    </style>
+
+    <style name="Fork.Widget.GlassOverflowMenu.Dark" parent="Widget.AppCompat.PopupMenu.Overflow">
+        <item name="android:popupBackground">@drawable/fork_glass_popup</item>
+        <!-- 不要投影：半透明背景会让投影在菜单里面透出一圈灰边 -->
+        <item name="android:popupElevation">0dp</item>
+        <!-- 菜单从顶栏下沿开始弹出，不盖住顶栏 -->
+        <item name="overlapAnchor">false</item>
+        <item name="android:overlapAnchor">false</item>
+    </style>
+</resources>

@@ -25,5 +25,7 @@ class CoordinatorLayoutAnchorDelegateImpl(private val mCoordinatorLayout: Coordi
 
         floatingActionButton.setOnClickListener(onClickListener)
         floatingActionButton.setImageResource(resId)
+        // Fork：玻璃悬浮按钮
+        me.ykrank.s1next.widget.glass.GlassBars.glassFab(floatingActionButton)
     }
 }

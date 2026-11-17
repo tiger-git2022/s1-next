@@ -247,6 +247,8 @@ abstract class BaseActivity : LibBaseActivity() {
         if (toolbar != null) {
             mToolbarDelegate = ToolbarDelegate(this, toolbar)
         }
+        // Fork：玻璃顶栏
+        me.ykrank.s1next.widget.glass.GlassBars.install(this)
     }
 
     /**

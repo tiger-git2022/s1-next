@@ -1,0 +1,3 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Fork：三个点弹出菜单的玻璃背景，见 widget/glass/GlassPopupDrawable.kt -->
+<drawable class="me.ykrank.s1next.widget.glass.GlassPopupDrawable" />

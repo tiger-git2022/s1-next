@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Fork（tiger-git2022）：玻璃效果设置，见 widget/glass/GlassSettings.kt -->
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <PreferenceCategory
+        android:title="@string/fork_glass_category"
+        app:iconSpaceReserved="false">
+
+        <SeekBarPreference
+            android:defaultValue="12"
+            android:key="fork_glass_blur_dp"
+            android:max="40"
+            android:summary="@string/fork_glass_blur_summary"
+            android:title="@string/fork_glass_blur"
+            app:iconSpaceReserved="false"
+            app:min="0"
+            app:showSeekBarValue="true"
+            app:updatesContinuously="true" />
+
+        <SeekBarPreference
+            android:defaultValue="60"
+            android:key="fork_glass_opacity"
+            android:max="100"
+            android:summary="@string/fork_glass_opacity_summary"
+            android:title="@string/fork_glass_opacity"
+            app:iconSpaceReserved="false"
+            app:min="0"
+            app:showSeekBarValue="true"
+            app:updatesContinuously="true" />
+
+    </PreferenceCategory>
+</PreferenceScreen>

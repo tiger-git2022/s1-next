@@ -18,6 +18,7 @@
 - **修复阅读进度偶尔不准**：原版只要还在加载（先显示缓存、网络还没返回，或上拉加载更多），退出时就不保存进度，下次回到更早的位置。
 - **修复 App 接口登录失败**：R8 混淆把 OkHttp 的 `PublicSuffixDatabase.gz` 挪了位置，处理 Cookie 时报错。
 - **帖子可复制时翻页不再跳回顶部**：原版开启「帖子可复制」后，切换页面会被拉回顶部（开关的提示里也这么写）。原因是楼层滑进屏幕时 TextView 被禁用再启用，获得焦点后让列表滚到自己；现在忽略这种焦点引起的滚动，复制功能不受影响。
+- **玻璃效果**（Android 12 及以上）：论坛首页、帖子列表、帖子页的顶栏和状态栏改成玻璃，内容从下面穿过、模糊透出；悬浮按钮是圆形玻璃，三个点弹出菜单也是玻璃（从顶栏下沿弹出）。帖子列表不再显示子版块（分类）标签，省出位置，左右滑动仍可切换。「设置 → 玻璃效果」里可以调模糊度（0–40dp，默认 12）和不透明度（0–100%，默认 60，0 为纯模糊），改完立即生效。
 - **引用回复失败时显示原因**：论坛不给引用表单时（比如要求实名、没有回复权限），原版只显示「发生了一个未知的错误」，现在显示论坛给出的原话。
 
 `master` 分支与上游保持一致，不在上面开发。
@@ -77,6 +78,7 @@
 - `app/src/main/java/me/ykrank/s1next/view/page/post/postlist/PostListPagerFragment.kt`：帖子末尾闪退、阅读进度、自动黑魔法
 - `view/adapter/delegate/SelectableTextFocusFix.kt`（新文件）、`view/page/post/adapter/PostAdapterDelegate.kt`、`PostBlackAdapterDelegate.kt`、`view/adapter/delegate/AppPostAdapterDelegate.kt`、`view/page/app/AppPostListPagerFragment.kt`、`library/.../StartSnapLinearLayoutManager.kt`、`res/values*/strings.xml`：帖子可复制时翻页不跳回顶部
 - `view/dialog/requestdialog/ReplyRequestDialogFragment.kt`：引用回复失败时显示论坛给出的原因
+- `widget/glass/`（新目录）、`res/xml/preference_fork_glass.xml`、`res/values/fork_*.xml`、`res/values-v31/fork_styles.xml`、`res/drawable-v31/fork_glass_popup.xml`：玻璃效果；挂载点 `view/activity/BaseActivity.kt`（setupToolbar）、`view/fragment/BaseRecyclerViewFragment.kt`（列表顶部内边距）、`view/internal/CoordinatorLayoutAnchorDelegateImpl.kt`（悬浮按钮）、`view/page/setting/fragment/GeneralPreferenceFragment.kt`（设置项）、`app/proguard-rules.pro`（保留 XML 里按类名引用的 GlassPopupDrawable）
 - `app/proguard-rules.pro`：保留 okhttp3 包名
 - `app/build.gradle.kts`、`app/src/custom/`：自用版构建类型、版本号、签名；自用版图标（纯黑背景，修正上游前景图向右下偏 10/12 像素的问题，和图标包里官方版的样子一致）
 
@@ -86,6 +88,7 @@ A personal fork of [ykrank/S1-Next](https://github.com/ykrank/S1-Next), a client
 
 - **Moved to stage1st.com**: all `*.saraba1st.com` hosts are gone from DNS, so upstream fails every request and keeps showing cached data; polls, the dark room and "dark magic" were broken too. Old links in posts are rewritten to the new host.
 - **Automatic dark magic**: posts by banned authors are filled in from the app API automatically when it is logged in.
+- **Glass** (Android 12+): the bars of the forum list, thread list and thread page blur the content scrolling beneath them; the floating button and the overflow menu are glass too. Blur and opacity are adjustable in the settings. The thread list hides its category tabs.
 - **Fixes** for a crash near the end of a thread, reading progress that was not saved while loading, an app API login failure caused by R8 moving OkHttp's `PublicSuffixDatabase.gz`, pages jumping to the top when post text is selectable, and quote replies that only said "unknown error" instead of the forum's reason.
 
 Package `me.ykrank.s1next.custom`, installs beside the official app. Versions are the fork's own `vX.Y.Z` (X.Y in `.github/fork-version`, Z counted by the release workflow), versionCode `X × 10000000 + Y × 10000 + Z`. Releases are built by `tiger-release.yml` on every push to `custom`; `tiger-sync-upstream.yml` merges upstream `master` every 6 hours and releases when it builds, or opens an issue. Secrets: `KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD`, optional `SYNC_TOKEN`. Build locally with JDK 17.

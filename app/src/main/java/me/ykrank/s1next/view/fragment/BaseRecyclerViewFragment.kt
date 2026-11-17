@@ -59,6 +59,13 @@ abstract class BaseRecyclerViewFragment<D> : LibBaseRecyclerViewFragment<D>() {
     }
 
     @CallSuper
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        // Fork：玻璃顶栏下列表留出顶部内边距
+        me.ykrank.s1next.widget.glass.GlassBars.applyListInsets(this, recyclerView)
+    }
+
+    @CallSuper
     override fun onCreateOptionsMenu(menu: Menu, inflater: MenuInflater) {
         inflater.inflate(R.menu.fragment_base, menu)
     }
