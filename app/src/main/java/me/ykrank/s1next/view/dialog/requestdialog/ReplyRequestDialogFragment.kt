@@ -7,9 +7,11 @@ import io.reactivex.Single
 import me.ykrank.s1next.App.Companion.get
 import me.ykrank.s1next.R
 import me.ykrank.s1next.data.api.Api
+import me.ykrank.s1next.data.api.ApiException
 import me.ykrank.s1next.data.api.model.Quote
 import me.ykrank.s1next.data.api.model.wrapper.AccountResultWrapper
 import me.ykrank.s1next.widget.track.event.NewReplyTrackEvent
+import org.jsoup.Jsoup
 
 /**
  * A dialog requests to reply to post.
@@ -27,8 +29,11 @@ class ReplyRequestDialogFragment : BaseRequestDialogFragment<AccountResultWrappe
             flatMappedWithAuthenticityToken { s: String? -> mS1Service.reply(s, threadId, reply) }
         } else {
             mS1Service.getQuoteInfo(threadId, quotePostId).flatMap { s: String? ->
+                // Fork：拿不到引用信息时（比如论坛要求实名、没有回复权限），显示论坛返回的原因，
+                // 而不是「发生了一个未知的错误」
                 val quote = Quote.fromXmlString(s)
-                    ?: throw IllegalStateException("Cannot get the post information.")
+                    ?: throw ajaxErrorMessage(s)?.let { ApiException.ApiServerException(it) }
+                        ?: IllegalStateException("Cannot get the post information.")
                 flatMappedWithAuthenticityToken { token: String? ->
                     mS1Service.replyQuote(
                         token, threadId, reply, quote.encodedUserId,
@@ -53,6 +58,20 @@ class ReplyRequestDialogFragment : BaseRequestDialogFragment<AccountResultWrappe
 
     companion object {
         val TAG: String = ReplyRequestDialogFragment::class.java.getName()
+
+        /**
+         * Fork：Discuz 的 ajax 提示是 `<root><![CDATA[<div class="alert_error">原因<script>…</script></div>]]></root>`，
+         * 取出其中的文字。
+         */
+        internal fun ajaxErrorMessage(xmlString: String?): String? {
+            if (xmlString.isNullOrBlank()) return null
+            val html = "<!\\[CDATA\\[(.*)]]>".toRegex(RegexOption.DOT_MATCHES_ALL)
+                .find(xmlString)?.groupValues?.getOrNull(1) ?: xmlString
+            val doc = Jsoup.parse(html)
+            doc.select("script, style").remove()
+            val text = doc.text().trim()
+            return text.takeIf { it.isNotEmpty() && it.length <= 300 }
+        }
         private const val ARG_THREAD_ID = "thread_id"
         private const val ARG_REPLY = "reply"
         private const val ARG_QUOTE_POST_ID = "quote_post_id"
