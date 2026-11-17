@@ -135,6 +135,8 @@ class PostListPagerFragment : BaseRecyclerViewFragment<PostsWrapper>(),
         mRecyclerView = recyclerView
         mLayoutManager = StartSnapLinearLayoutManager(requireActivity())
         mRecyclerView.layoutManager = mLayoutManager
+        // Fork：不在布局后把焦点还给之前的楼层，否则会再触发一次滚到该楼层（触屏上用不到）
+        mRecyclerView.preserveFocusAfterLayout = false
         mRecyclerAdapter =
             PostListRecyclerViewAdapter(
                 this,

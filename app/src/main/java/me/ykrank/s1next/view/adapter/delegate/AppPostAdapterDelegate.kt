@@ -89,12 +89,15 @@ class AppPostAdapterDelegate(
         super.onViewAttachedToWindow(holder)
         if (mGeneralPreferencesManager.isPostSelectable) {
             val binding = (holder as SimpleRecycleViewHolder<ItemAppPostBinding>).binding
-            binding.authorName.isEnabled = false
-            binding.tvFloor.isEnabled = false
-            binding.tvReply.isEnabled = false
-            binding.authorName.isEnabled = true
-            binding.tvFloor.isEnabled = true
-            binding.tvReply.isEnabled = true
+            // Fork：重新启用时不要让列表滚到这个楼层
+            SelectableTextFocusFix.withoutFocusScroll(holder.itemView) {
+                binding.authorName.isEnabled = false
+                binding.tvFloor.isEnabled = false
+                binding.tvReply.isEnabled = false
+                binding.authorName.isEnabled = true
+                binding.tvFloor.isEnabled = true
+                binding.tvReply.isEnabled = true
+            }
         }
     }
 

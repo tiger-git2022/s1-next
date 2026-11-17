@@ -203,9 +203,9 @@
         
     <string name="menu_post_selectable">帖子可複制</string>
         
-    <string name="dialog_message_post_selectable_warn">如果帖子文本可選，則切換頁面時帖子文本將自動滾動到頂部（用來複製文本）</string>
+    <string name="dialog_message_post_selectable_warn">開啟後可以長按選擇、複製帖子文字</string>
         
-    <string name="dialog_message_post_unselectable_warn">如果帖子文本不可選，則帖子在切換頁面時將不再自動滾動到頂部（閱讀時推薦）</string>
+    <string name="dialog_message_post_unselectable_warn">關閉後不能再選擇帖子文字</string>
         
     <string name="dialog_message_text_switch">切換</string>
         

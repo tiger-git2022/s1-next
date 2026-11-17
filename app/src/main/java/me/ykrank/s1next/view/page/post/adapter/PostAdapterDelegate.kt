@@ -14,6 +14,7 @@ import com.github.ykrank.androidtools.ui.adapter.simple.SimpleRecycleViewHolder
 import com.github.ykrank.androidtools.util.L
 import com.github.ykrank.androidtools.widget.EventBus
 import kotlinx.coroutines.launch
+import me.ykrank.s1next.view.adapter.delegate.SelectableTextFocusFix
 import me.ykrank.s1next.App
 import me.ykrank.s1next.R
 import me.ykrank.s1next.data.User
@@ -185,10 +186,13 @@ class PostAdapterDelegate(private val fragment: Fragment, context: Context) :
         super.onViewAttachedToWindow(holder)
         if (mGeneralPreferencesManager.isPostSelectable) {
             val binding = (holder as SimpleRecycleViewHolder<ItemPostBinding>).binding
-            binding.authorName.isEnabled = false
-            binding.tvReply.isEnabled = false
-            binding.authorName.isEnabled = true
-            binding.tvReply.isEnabled = true
+            // Fork：重新启用时不要让列表滚到这个楼层（翻页回到顶部、布局中滚动导致崩溃）
+            SelectableTextFocusFix.withoutFocusScroll(holder.itemView) {
+                binding.authorName.isEnabled = false
+                binding.tvReply.isEnabled = false
+                binding.authorName.isEnabled = true
+                binding.tvReply.isEnabled = true
+            }
         }
     }
 
