@@ -17,6 +17,8 @@
 - **修复帖子末尾闪退**：在最后一页滑到底时，滚动回调可能发生在列表布局过程中，插入底部「加载中」项会崩溃（`Cannot call this method while RecyclerView is computing a layout or scrolling`）。
 - **修复阅读进度偶尔不准**：原版只要还在加载（先显示缓存、网络还没返回，或上拉加载更多），退出时就不保存进度，下次回到更早的位置。
 - **修复 App 接口登录失败**：R8 混淆把 OkHttp 的 `PublicSuffixDatabase.gz` 挪了位置，处理 Cookie 时报错。
+- **帖子可复制时翻页不再跳回顶部**：原版开启「帖子可复制」后，切换页面会被拉回顶部（开关的提示里也这么写）。原因是楼层滑进屏幕时 TextView 被禁用再启用，获得焦点后让列表滚到自己；现在忽略这种焦点引起的滚动，复制功能不受影响。
+- **引用回复失败时显示原因**：论坛不给引用表单时（比如要求实名、没有回复权限），原版只显示「发生了一个未知的错误」，现在显示论坛给出的原话。
 
 `master` 分支与上游保持一致，不在上面开发。
 
@@ -73,6 +75,8 @@
 
 - `app/src/main/java/me/ykrank/s1next/data/api/Api.kt`、`data/api/app/AppApi.java`、`widget/net/AppDns.kt`、`widget/glide/OkHttpNoAvatarInterceptor.kt`、`data/api/model/PostAttachMent.kt`、`AndroidManifest.xml`：论坛域名
 - `app/src/main/java/me/ykrank/s1next/view/page/post/postlist/PostListPagerFragment.kt`：帖子末尾闪退、阅读进度、自动黑魔法
+- `view/adapter/delegate/SelectableTextFocusFix.kt`（新文件）、`view/page/post/adapter/PostAdapterDelegate.kt`、`PostBlackAdapterDelegate.kt`、`view/adapter/delegate/AppPostAdapterDelegate.kt`、`view/page/app/AppPostListPagerFragment.kt`、`library/.../StartSnapLinearLayoutManager.kt`、`res/values*/strings.xml`：帖子可复制时翻页不跳回顶部
+- `view/dialog/requestdialog/ReplyRequestDialogFragment.kt`：引用回复失败时显示论坛给出的原因
 - `app/proguard-rules.pro`：保留 okhttp3 包名
 - `app/build.gradle.kts`、`app/src/custom/`：自用版构建类型、版本号、签名；自用版图标（纯黑背景，修正上游前景图向右下偏 10/12 像素的问题，和图标包里官方版的样子一致）
 
@@ -82,6 +86,6 @@ A personal fork of [ykrank/S1-Next](https://github.com/ykrank/S1-Next), a client
 
 - **Moved to stage1st.com**: all `*.saraba1st.com` hosts are gone from DNS, so upstream fails every request and keeps showing cached data; polls, the dark room and "dark magic" were broken too. Old links in posts are rewritten to the new host.
 - **Automatic dark magic**: posts by banned authors are filled in from the app API automatically when it is logged in.
-- **Fixes** for a crash near the end of a thread, reading progress that was not saved while loading, and an app API login failure caused by R8 moving OkHttp's `PublicSuffixDatabase.gz`.
+- **Fixes** for a crash near the end of a thread, reading progress that was not saved while loading, an app API login failure caused by R8 moving OkHttp's `PublicSuffixDatabase.gz`, pages jumping to the top when post text is selectable, and quote replies that only said "unknown error" instead of the forum's reason.
 
 Package `me.ykrank.s1next.custom`, installs beside the official app. Versions are the fork's own `vX.Y.Z` (X.Y in `.github/fork-version`, Z counted by the release workflow), versionCode `X × 10000000 + Y × 10000 + Z`. Releases are built by `tiger-release.yml` on every push to `custom`; `tiger-sync-upstream.yml` merges upstream `master` every 6 hours and releases when it builds, or opens an issue. Secrets: `KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD`, optional `SYNC_TOKEN`. Build locally with JDK 17.
