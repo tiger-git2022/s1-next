@@ -1,8 +1,11 @@
 package com.github.ykrank.androidtools.widget.recycleview
 
 import android.content.Context
+import android.graphics.Rect
 import android.util.AttributeSet
+import android.view.View
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import androidx.recyclerview.widget.LinearSmoothScroller
 
 /**LinearLayoutManager only snap to start
@@ -21,6 +24,27 @@ class StartSnapLinearLayoutManager : LinearLayoutManager {
 
     constructor(context: Context, attrs: AttributeSet, defStyleAttr: Int, defStyleRes: Int) : super(context, attrs, defStyleAttr, defStyleRes) {
         this.context = context
+    }
+
+    /**
+     * Fork：为 true 时忽略子 View 获得焦点引起的滚动（见 app 里的 SelectableTextFocusFix）
+     */
+    var blockFocusScroll = false
+
+    override fun requestChildRectangleOnScreen(
+        parent: RecyclerView, child: View, rect: Rect,
+        immediate: Boolean, focusedChildVisible: Boolean
+    ): Boolean {
+        if (blockFocusScroll) return false
+        return super.requestChildRectangleOnScreen(parent, child, rect, immediate, focusedChildVisible)
+    }
+
+    override fun onRequestChildFocus(
+        parent: RecyclerView, state: RecyclerView.State, child: View, focused: View?
+    ): Boolean {
+        // true: 已处理，RecyclerView 不再为了显示获得焦点的子 View 而滚动
+        if (blockFocusScroll) return true
+        return super.onRequestChildFocus(parent, state, child, focused)
     }
 
     /**

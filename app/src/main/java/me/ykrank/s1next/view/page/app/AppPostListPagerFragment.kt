@@ -105,6 +105,8 @@ class AppPostListPagerFragment : BaseRecyclerViewFragment<AppPostsWrapper>(),
         mRecyclerAdapter =
             AppPostListRecyclerViewAdapter(requireActivity(), viewLifecycleOwner, mQuotePid)
         recyclerView.layoutManager = mLayoutManager
+        // Fork：不在布局后把焦点还给之前的楼层，否则会再触发一次滚到该楼层（触屏上用不到）
+        recyclerView.preserveFocusAfterLayout = false
         recyclerView.adapter = mRecyclerAdapter
 
         binding.quickSideBarView.setOnQuickSideBarTouchListener(this)
