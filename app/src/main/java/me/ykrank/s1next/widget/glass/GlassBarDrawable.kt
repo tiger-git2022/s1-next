@@ -2,7 +2,6 @@ package me.ykrank.s1next.widget.glass
 
 import android.graphics.Canvas
 import android.graphics.ColorFilter
-import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.PixelFormat
 import android.graphics.RectF
@@ -32,6 +31,14 @@ class GlassBarDrawable(
     @ColorInt private val backdropColor: Int,
     /** true：圆形（悬浮按钮）；false：矩形顶栏（不画边线） */
     private val oval: Boolean = false,
+    /** 固定的不透明度（0..100），不跟设置走（楼层气泡） */
+    private val fixedOpacity: Int? = null,
+    /** 状态栏玻璃条：用设置里单独的状态栏不透明度 */
+    private val statusBar: Boolean = false,
+    /** 四个角的圆角半径（px）；Float.MAX_VALUE 为胶囊形（楼层气泡） */
+    private val cornerRadius: Float = 0f,
+    /** 只圆下面两个角（顶栏，上面接状态栏） */
+    private val bottomCornerRadius: Float = 0f,
 ) : Drawable() {
 
     private val node = RenderNode("glass-bar")
@@ -41,13 +48,8 @@ class GlassBarDrawable(
     private var appliedBlurDp = -1
     private var appliedOpacity = -1
     private var tint = 0
-    /** 深色玻璃上画一圈浅色亮边；浅色玻璃不画（白天模式下会像一圈黑框） */
-    private val ringPaint = if (ColorUtils.calculateLuminance(tintColor) > 0.5) null
-    else Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.STROKE
-        color = 0x55FFFFFF
-        strokeWidth = host.resources.displayMetrics.density
-    }
+    /** 夜间（玻璃颜色是深色），用夜间的不透明度 */
+    private val dark = ColorUtils.calculateLuminance(tintColor) < 0.5
     private val clip = Path()
     private val hostLocation = IntArray(2)
     private val sourceLocation = IntArray(2)
@@ -78,12 +80,19 @@ class GlassBarDrawable(
     /** @return 设置是否有变化 */
     private fun applySettings(): Boolean {
         val blurDp = GlassSettings.blurDp
-        val opacity = GlassSettings.opacityPercent
+        val opacity = fixedOpacity
+            ?: if (statusBar) GlassSettings.statusOpacity(dark) else GlassSettings.opacity(dark)
         if (blurDp == appliedBlurDp && opacity == appliedOpacity) return false
         if (blurDp != appliedBlurDp) {
             val px = blurDp * density
             node.setRenderEffect(
-                if (px > 0f) RenderEffect.createBlurEffect(px, px, Shader.TileMode.CLAMP) else null
+                // 模糊后再提一点饱和度（1.4 倍），透出来的颜色更鲜，接近系统桌面组件的玻璃
+                if (px > 0f) RenderEffect.createChainEffect(
+                    RenderEffect.createColorFilterEffect(
+                        android.graphics.ColorMatrixColorFilter(android.graphics.ColorMatrix().apply { setSaturation(1.4f) })
+                    ),
+                    RenderEffect.createBlurEffect(px, px, Shader.TileMode.CLAMP)
+                ) else null
             )
             appliedBlurDp = blurDp
         }
@@ -99,13 +108,16 @@ class GlassBarDrawable(
         if (w <= 0 || h <= 0 || !source.isLaidOut) return
         host.getLocationInWindow(hostLocation)
         source.getLocationInWindow(sourceLocation)
-        node.setPosition(0, 0, w, h)
-        val canvas = node.beginRecording(w, h)
+        // 四周多录一圈（约 3 倍模糊半径），模糊边缘用到的是真实内容而不是边缘像素的重复，
+        // 状态栏和顶栏两块玻璃在交界处才能对上，不会出现一道分隔线
+        val pad = edgePad()
+        node.setPosition(-pad, -pad, w + pad, h + pad)
+        val canvas = node.beginRecording(w + 2 * pad, h + 2 * pad)
         try {
             canvas.drawColor(backdropColor)
             canvas.translate(
-                (sourceLocation[0] - hostLocation[0]).toFloat(),
-                (sourceLocation[1] - hostLocation[1]).toFloat()
+                (sourceLocation[0] - hostLocation[0] + pad).toFloat(),
+                (sourceLocation[1] - hostLocation[1] + pad).toFloat()
             )
             source.draw(canvas)
         } finally {
@@ -113,12 +125,31 @@ class GlassBarDrawable(
         }
     }
 
+    /** 宿主挪了位置（比如跟着楼层气泡走）后立即按新位置重录 */
+    fun refresh() {
+        record()
+        invalidateSelf()
+    }
+
+    private fun edgePad(): Int = (appliedBlurDp * density * 3).toInt().coerceIn(0, 200)
+
     override fun draw(canvas: Canvas) {
         val b = bounds
         val save = canvas.save()
+        canvas.clipRect(b)
         if (oval) {
             clip.reset()
             clip.addOval(RectF(b), Path.Direction.CW)
+            canvas.clipPath(clip)
+        } else if (cornerRadius > 0f) {
+            val r = minOf(cornerRadius, b.width() / 2f, b.height() / 2f)
+            clip.reset()
+            clip.addRoundRect(RectF(b), r, r, Path.Direction.CW)
+            canvas.clipPath(clip)
+        } else if (bottomCornerRadius > 0f) {
+            val r = minOf(bottomCornerRadius, b.width() / 2f, b.height().toFloat())
+            clip.reset()
+            clip.addRoundRect(RectF(b), floatArrayOf(0f, 0f, 0f, 0f, r, r, r, r), Path.Direction.CW)
             canvas.clipPath(clip)
         }
         if (canvas.isHardwareAccelerated) {
@@ -129,12 +160,6 @@ class GlassBarDrawable(
             canvas.drawColor(tintColor)
         }
         canvas.restoreToCount(save)
-        if (oval) {
-            ringPaint?.let {
-                val inset = it.strokeWidth / 2
-                canvas.drawOval(RectF(b).apply { inset(inset, inset) }, it)
-            }
-        }
     }
 
     override fun setAlpha(alpha: Int) {}

@@ -27,8 +27,15 @@ class GeneralPreferencesImpl(context: Context, sharedPreferences: SharedPreferen
     override var isPostSelectable: Boolean by PreferenceDelegates.bool(
             R.string.pref_key_post_selectable, R.bool.pref_post_selectable_default_value)
 
-    override var isQuickSideBarEnable: Boolean by PreferenceDelegates.bool(
+    // Fork：开了玻璃效果（Android 12+）时用右侧的楼层滚动条（FloorScrollBar）代替这一列楼层数字
+    private var quickSideBarPref: Boolean by PreferenceDelegates.bool(
             R.string.pref_key_quick_side_bar_enable, R.bool.pref_quick_side_bar_enable_default_value)
+
+    override var isQuickSideBarEnable: Boolean
+        get() = !me.ykrank.s1next.widget.glass.GlassBars.isSupported() && quickSideBarPref
+        set(value) {
+            quickSideBarPref = value
+        }
 
     override var isPostDisableSticky: Boolean by PreferenceDelegates.bool(
             R.string.pref_key_post_disable_sticky, R.bool.pref_post_disable_sticky_default_value)

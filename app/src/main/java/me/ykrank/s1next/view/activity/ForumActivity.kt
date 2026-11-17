@@ -99,6 +99,8 @@ class ForumActivity : BaseActivity(), ToolbarDropDownInterface.Callback, Adapter
                 R.layout.toolbar_spinner, toolbar.get(), true
             )
             binding.spinner.onItemSelectedListener = this
+            // Fork：玻璃下拉框，从顶栏下沿弹出
+            me.ykrank.s1next.widget.glass.GlassBars.glassSpinner(binding.spinner)
             // let spinner's parent to handle clicking event in order
             // to increase spinner's clicking area.
             binding.spinnerContainer.setOnClickListener { v -> binding.spinner.performClick() }

@@ -16,6 +16,8 @@
         <!-- 菜单从顶栏下沿开始弹出，不盖住顶栏 -->
         <item name="overlapAnchor">false</item>
         <item name="android:overlapAnchor">false</item>
+        <!-- 三个点按钮的下沿比顶栏的圆角下沿高一截，往下挪一点，菜单顶部不压住顶栏 -->
+        <item name="android:dropDownVerticalOffset">10dp</item>
     </style>
 
     <style name="Fork.Widget.GlassOverflowMenu.Dark" parent="Widget.AppCompat.PopupMenu.Overflow">
@@ -25,5 +27,7 @@
         <!-- 菜单从顶栏下沿开始弹出，不盖住顶栏 -->
         <item name="overlapAnchor">false</item>
         <item name="android:overlapAnchor">false</item>
+        <!-- 三个点按钮的下沿比顶栏的圆角下沿高一截，往下挪一点，菜单顶部不压住顶栏 -->
+        <item name="android:dropDownVerticalOffset">10dp</item>
     </style>
 </resources>

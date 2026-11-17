@@ -29,5 +29,38 @@
             app:showSeekBarValue="true"
             app:updatesContinuously="true" />
 
+        <SeekBarPreference
+            android:defaultValue="20"
+            android:key="fork_glass_opacity_night"
+            android:max="100"
+            android:summary="@string/fork_glass_opacity_summary"
+            android:title="@string/fork_glass_opacity_night"
+            app:iconSpaceReserved="false"
+            app:min="0"
+            app:showSeekBarValue="true"
+            app:updatesContinuously="true" />
+
+        <SeekBarPreference
+            android:defaultValue="40"
+            android:key="fork_glass_status_opacity"
+            android:max="100"
+            android:summary="@string/fork_glass_status_opacity_summary"
+            android:title="@string/fork_glass_status_opacity"
+            app:iconSpaceReserved="false"
+            app:min="0"
+            app:showSeekBarValue="true"
+            app:updatesContinuously="true" />
+
+        <SeekBarPreference
+            android:defaultValue="20"
+            android:key="fork_glass_status_opacity_night"
+            android:max="100"
+            android:summary="@string/fork_glass_status_opacity_summary"
+            android:title="@string/fork_glass_status_opacity_night"
+            app:iconSpaceReserved="false"
+            app:min="0"
+            app:showSeekBarValue="true"
+            app:updatesContinuously="true" />
+
     </PreferenceCategory>
 </PreferenceScreen>
