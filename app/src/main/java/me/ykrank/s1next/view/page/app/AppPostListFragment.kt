@@ -133,6 +133,8 @@ class AppPostListFragment : BaseViewPagerFragment(), AppPostListPagerFragment.Pa
         mMenuPostSelectable?.isChecked = mGeneralPreferencesManager.isPostSelectable
         val mMenuQuickSideBarEnable = menu.findItem(R.id.menu_quick_side_bar_enable)
         mMenuQuickSideBarEnable?.isChecked = mGeneralPreferencesManager.isQuickSideBarEnable
+        // Fork：玻璃效果下改用楼层滚动条，不再显示这个开关
+        mMenuQuickSideBarEnable?.isVisible = !me.ykrank.s1next.widget.glass.GlassBars.isSupported()
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {

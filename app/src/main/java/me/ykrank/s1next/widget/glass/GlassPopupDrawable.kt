@@ -46,13 +46,24 @@ class GlassPopupDrawable : Drawable() {
     private val clip = Path()
     private val location = IntArray(2)
     private val windowLocation = IntArray(2)
+    private var watchedHost: View? = null
+
+    // 同一个弹窗（比如下拉框）每次打开都复用这个背景：关闭时清掉截图，下次打开重新截
+    private val detachListener = object : View.OnAttachStateChangeListener {
+        override fun onViewAttachedToWindow(v: View) {}
+
+        override fun onViewDetachedFromWindow(v: View) {
+            requested = false
+            snapshot = null
+        }
+    }
 
     override fun inflate(r: Resources, parser: XmlPullParser, attrs: AttributeSet, theme: Resources.Theme?) {
         super.inflate(r, parser, attrs, theme)
         density = r.displayMetrics.density
     }
 
-    private val radius get() = 12 * density
+    private val radius get() = 24 * density
 
     override fun onBoundsChange(bounds: Rect) {
         super.onBoundsChange(bounds)
@@ -61,6 +72,13 @@ class GlassPopupDrawable : Drawable() {
 
     override fun draw(canvas: Canvas) {
         val host = callback as? View
+        if (host != null && host !== watchedHost) {
+            watchedHost?.removeOnAttachStateChangeListener(detachListener)
+            host.addOnAttachStateChangeListener(detachListener)
+            watchedHost = host
+            requested = false
+            snapshot = null
+        }
         if (!requested && host != null && host.isAttachedToWindow && !bounds.isEmpty) {
             requested = true
             requestSnapshot(host)
@@ -70,7 +88,7 @@ class GlassPopupDrawable : Drawable() {
         clip.addRoundRect(b, radius, radius, Path.Direction.CW)
         val save = canvas.save()
         canvas.clipPath(clip)
-        val opacity = GlassSettings.opacityPercent
+        val opacity = GlassSettings.opacity(dark = tintColor != Color.WHITE)
         val ready = snapshot != null && canvas.isHardwareAccelerated
         if (ready) {
             canvas.save()
@@ -88,15 +106,16 @@ class GlassPopupDrawable : Drawable() {
         val activity = host.context.findActivity() ?: return
         GlassSettings.init(activity)
         GlassBars.tintColorOf(activity)?.let {
-            tintColor = if (ColorUtils.calculateLuminance(it) > 0.5) Color.WHITE else Color.BLACK
+            tintColor = if (ColorUtils.calculateLuminance(it) > 0.5) Color.WHITE else GlassBars.DARK_GLASS_TINT
         }
         val w = bounds.width()
         val h = bounds.height()
-        host.getLocationOnScreen(location)
+        // 第一次绘制时弹窗还在播放入场动画（位移、缩放），所以不用 getLocationOnScreen，
+        // 而是用弹窗窗口的位置加上各层 View 的布局位置，得到动画结束后的最终位置
+        untransformedLocationOnScreen(host, location)
         activity.window.decorView.getLocationOnScreen(windowLocation)
-        // 第一次绘制时菜单还在播放弹出动画（带位移），按动画结束后的最终位置截取
-        val left = location[0] - windowLocation[0] + bounds.left - host.translationX.toInt()
-        val top = location[1] - windowLocation[1] + bounds.top - host.translationY.toInt()
+        val left = location[0] - windowLocation[0] + bounds.left
+        val top = location[1] - windowLocation[1] + bounds.top
         val decor = activity.window.decorView
         val src = Rect(left, top, left + w, top + h)
         if (!src.intersect(0, 0, decor.width, decor.height) || src.isEmpty) return
@@ -107,7 +126,13 @@ class GlassPopupDrawable : Drawable() {
             node.setPosition(0, 0, w, h)
             val px = GlassSettings.blurDp * density
             node.setRenderEffect(
-                if (px > 0f) RenderEffect.createBlurEffect(px, px, Shader.TileMode.CLAMP) else null
+                // 模糊后再提一点饱和度（1.4 倍），透出来的颜色更鲜，接近系统桌面组件的玻璃
+                if (px > 0f) RenderEffect.createChainEffect(
+                    RenderEffect.createColorFilterEffect(
+                        android.graphics.ColorMatrixColorFilter(android.graphics.ColorMatrix().apply { setSaturation(1.4f) })
+                    ),
+                    RenderEffect.createBlurEffect(px, px, Shader.TileMode.CLAMP)
+                ) else null
             )
             val c = node.beginRecording(w, h)
             try {
@@ -117,6 +142,22 @@ class GlassPopupDrawable : Drawable() {
             }
             invalidateSelf()
         }, Handler(Looper.getMainLooper()))
+    }
+
+    private fun untransformedLocationOnScreen(view: View, out: IntArray) {
+        var x = 0
+        var y = 0
+        var v = view
+        while (true) {
+            val parent = v.parent as? View ?: break
+            x += v.left - parent.scrollX
+            y += v.top - parent.scrollY
+            v = parent
+        }
+        // 根 View 自己的位移（动画）也扣掉
+        v.getLocationOnScreen(out)
+        out[0] += x - v.translationX.toInt()
+        out[1] += y - v.translationY.toInt()
     }
 
     override fun getPadding(padding: Rect): Boolean {

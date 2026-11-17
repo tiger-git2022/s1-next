@@ -97,6 +97,8 @@ class PostListPagerFragment : BaseRecyclerViewFragment<PostsWrapper>(),
     private lateinit var binding: FragmentBaseWithQuickSideBarBinding
     private lateinit var mRecyclerView: androidx.recyclerview.widget.RecyclerView
     private lateinit var mRecyclerAdapter: PostListRecyclerViewAdapter
+    /** Fork：全帖最后一楼（主楼是 1 楼），给楼层滚动条的气泡用 */
+    private var forkLastFloor = -1
     private lateinit var mLayoutManager: StartSnapLinearLayoutManager
     private lateinit var quickSideBarView: QuickSideBarView
     private lateinit var quickSideBarTipsView: TextView
@@ -143,6 +145,17 @@ class PostListPagerFragment : BaseRecyclerViewFragment<PostsWrapper>(),
                 requireContext()
             )
         mRecyclerView.adapter = mRecyclerAdapter
+        // Fork：右侧楼层滚动条（拖动时显示第几楼）
+        if (me.ykrank.s1next.widget.glass.GlassBars.isSupported()) {
+            me.ykrank.s1next.widget.glass.FloorScrollBar.attach(
+                view as ViewGroup, mRecyclerView,
+                object : me.ykrank.s1next.widget.glass.FloorScrollBar.Source {
+                    override fun floorAt(position: Int): Int =
+                        (mRecyclerAdapter.dataSet.getOrNull(position) as? Post)?.number?.toIntOrNull() ?: -1
+
+                    override fun lastFloor(): Int = forkLastFloor
+                })
+        }
 
         // add pull up to refresh to RecyclerView
         mRecyclerView.addOnScrollListener(object :
@@ -383,6 +396,7 @@ class PostListPagerFragment : BaseRecyclerViewFragment<PostsWrapper>(),
 
             //Thread info must not null, or exception
             val postListInfo = posts?.postListInfo as Thread
+            forkLastFloor = postListInfo.reliesCount + 1
             mRecyclerAdapter.setThreadInfo(postListInfo, mPageNum)
 
             posts.vote?.let {

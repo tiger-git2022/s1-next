@@ -114,7 +114,14 @@ class ThreadListActivity : BaseActivity(), ThreadListPagerFragment.SubForumsCall
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         when (item.itemId) {
             R.id.menu_sub_forums -> {
+                // Fork：子版块列表要等帖子列表从网络加载成功后才有，之前点了没有任何反应，这里给个提示
+                if (mListPopupWindow == null) {
+                    android.widget.Toast.makeText(this, R.string.fork_sub_forums_unavailable, android.widget.Toast.LENGTH_SHORT).show()
+                    return true
+                }
                 mListPopupWindow?.anchorView = toolbar.get().findViewById(R.id.menu_sub_forums)
+                // Fork：从顶栏下沿弹出
+                mListPopupWindow?.let { me.ykrank.s1next.widget.glass.GlassBars.alignBelowToolbar(this, it) }
                 mListPopupWindow?.show()
 
                 return true
@@ -149,6 +156,8 @@ class ThreadListActivity : BaseActivity(), ThreadListPagerFragment.SubForumsCall
     override fun setupSubForums(forumList: List<Forum>) {
         if (mListPopupWindow == null) {
             mListPopupWindow = ListPopupWindow(this)
+            // Fork：玻璃弹窗
+            me.ykrank.s1next.widget.glass.GlassBars.glassListPopup(this, mListPopupWindow!!)
 
             mSubForumArrayAdapter = SubForumArrayAdapter(this, R.layout.item_popup_menu_dropdown,
                     forumList)
