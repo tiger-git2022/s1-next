@@ -69,6 +69,11 @@ class GeneralPreferenceFragment : BasePreferenceFragment(), Preference.OnPrefere
         } else {
             findPreference<Preference>(getString(R.string.pref_key_check_update))?.onPreferenceClickListener = this
         }
+        // Fork：自用版检查自己 GitHub 上的新版本，摘要显示当前版本（原来是官方版下载页的提取码）
+        if (me.ykrank.s1next.util.ForkUpdate.enabled) {
+            findPreference<Preference>(getString(R.string.pref_key_check_update))?.summary =
+                getString(R.string.fork_update_summary, "v" + me.ykrank.s1next.util.ForkUpdate.currentVersionName(requireContext()))
+        }
 
         lifecycleScope.launch {
             val html = withContext(Dispatchers.Default){
@@ -121,7 +126,13 @@ class GeneralPreferenceFragment : BasePreferenceFragment(), Preference.OnPrefere
                 return true
             }
             getString(R.string.pref_key_check_update) -> {
-                AppUpdate.checkUpdate(preference.context)
+                // Fork：自用版检查自己 GitHub 上的新版本
+                if (me.ykrank.s1next.util.ForkUpdate.enabled) {
+                    val ctx = preference.context
+                    lifecycleScope.launch { me.ykrank.s1next.util.ForkUpdate.check(ctx) }
+                } else {
+                    AppUpdate.checkUpdate(preference.context)
+                }
                 return true
             }
             else -> return false

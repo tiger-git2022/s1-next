@@ -11,4 +11,13 @@
     <string name="fork_glass_status_opacity_summary" translatable="false">状态栏那一条玻璃上叠加的颜色有多浓；调得和顶栏接近，交界处就看不出色差</string>
     <string name="fork_glass_opacity_summary" translatable="false">顶栏、悬浮按钮和弹出菜单上叠加的颜色有多浓，越小越通透，0 为纯模糊</string>
     <string name="fork_sub_forums_unavailable" translatable="false">没有子版块，或者版块列表还没从网络加载成功（下拉刷新后再试）</string>
+    <string name="fork_update_summary" translatable="false">当前版本 %1$s，点击检查 GitHub 上的新版本</string>
+    <string name="fork_update_checking" translatable="false">正在检查更新…</string>
+    <string name="fork_update_latest" translatable="false">已是最新版本 %1$s</string>
+    <string name="fork_update_found" translatable="false">发现新版本 %1$s（当前 %2$s）</string>
+    <string name="fork_update_no_notes" translatable="false">没有更新说明</string>
+    <string name="fork_update_download" translatable="false">下载</string>
+    <string name="fork_update_failed" translatable="false">检查更新失败</string>
+    <string name="fork_update_failed_message" translatable="false">连不上 GitHub（%1$s）。可以打开发布页手动下载。</string>
+    <string name="fork_update_open_releases" translatable="false">打开发布页</string>
 </resources>
