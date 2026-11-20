@@ -20,6 +20,9 @@ class NetworkPreferencesImpl(context: Context, sharedPreferences: SharedPreferen
     override var forceBaseUrl: String? by PreferenceDelegates.string(
             mContext.getString(R.string.pref_key_force_base_url), Api.BASE_URL)
 
+    override var fallbackForumUrls: String? by PreferenceDelegates.string(
+            mContext.getString(R.string.fork_fallback_forum_urls_key), "")
+
     override var isAutoCheckBaseUrl: Boolean by PreferenceDelegates.bool(
             R.string.pref_key_auto_check_base_url, R.bool.pref_key_auto_check_base_url_default_value)
 
@@ -33,6 +36,7 @@ class NetworkPreferencesImpl(context: Context, sharedPreferences: SharedPreferen
 interface NetworkPreferences {
     val isForceBaseUrlEnable: Boolean
     var forceBaseUrl: String?
+    var fallbackForumUrls: String?
     var isAutoCheckBaseUrl: Boolean
     val isForceHostIpEnable: Boolean
     var forceHostIp: String?

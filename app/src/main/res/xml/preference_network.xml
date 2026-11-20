@@ -29,4 +29,10 @@
         android:title="@string/pref_force_host_ip"
         app:dependency="@string/pref_key_force_host_ip_enabled"
         app:iconSpaceReserved="false" />
+    <EditTextPreference
+        android:key="@string/fork_fallback_forum_urls_key"
+        android:title="@string/fork_fallback_forum_urls"
+        android:dialogMessage="@string/fork_fallback_forum_urls_help"
+        android:summary="@string/fork_fallback_forum_urls_help"
+        app:iconSpaceReserved="false" />
 </PreferenceScreen>

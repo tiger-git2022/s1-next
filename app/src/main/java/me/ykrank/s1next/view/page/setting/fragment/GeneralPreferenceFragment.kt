@@ -128,8 +128,8 @@ class GeneralPreferenceFragment : BasePreferenceFragment(), Preference.OnPrefere
             getString(R.string.pref_key_check_update) -> {
                 // Fork：自用版检查自己 GitHub 上的新版本
                 if (me.ykrank.s1next.util.ForkUpdate.enabled) {
-                    val ctx = preference.context
-                    lifecycleScope.launch { me.ykrank.s1next.util.ForkUpdate.check(ctx) }
+                    val host = requireActivity()
+                    viewLifecycleOwner.lifecycleScope.launch { me.ykrank.s1next.util.ForkUpdate.check(host) }
                 } else {
                     AppUpdate.checkUpdate(preference.context)
                 }

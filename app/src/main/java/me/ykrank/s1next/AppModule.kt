@@ -30,6 +30,7 @@ import me.ykrank.s1next.widget.download.ProgressManager
 import me.ykrank.s1next.widget.glide.AvatarFailUrlsCache
 import me.ykrank.s1next.widget.glide.OkHttpNoAvatarInterceptor
 import me.ykrank.s1next.widget.hostcheck.AppHostUrl
+import me.ykrank.s1next.widget.hostcheck.ForumReadRetryInterceptor
 import me.ykrank.s1next.widget.hostcheck.AppMultiHostInterceptor
 import me.ykrank.s1next.widget.hostcheck.NoticeCheckTask
 import me.ykrank.s1next.widget.net.AppData
@@ -79,7 +80,7 @@ class AppModule {
         builder.retryOnConnectionFailure(true)
         builder.cookieJar(cookieJar)
         builder.addInterceptor(ApiVersionInterceptor())
-        builder.addInterceptor(AppMultiHostInterceptor(baseHostUrl))
+        builder.addInterceptor(ForumReadRetryInterceptor(baseHostUrl))
         return builder
     }
 

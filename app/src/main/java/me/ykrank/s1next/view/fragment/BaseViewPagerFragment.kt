@@ -4,6 +4,7 @@ import android.content.Context
 import android.view.Menu
 import android.view.MenuInflater
 import android.view.MenuItem
+import android.view.View
 import androidx.annotation.CallSuper
 import androidx.viewpager.widget.ViewPager
 import com.github.ykrank.androidtools.ui.LibBaseViewPagerFragment
@@ -14,6 +15,7 @@ import me.ykrank.s1next.App
 import me.ykrank.s1next.R
 import me.ykrank.s1next.data.User
 import me.ykrank.s1next.data.api.UserValidator
+import me.ykrank.s1next.widget.glass.GlassBars
 import javax.inject.Inject
 
 /**
@@ -30,6 +32,22 @@ abstract class BaseViewPagerFragment : LibBaseViewPagerFragment() {
     override fun onAttach(context: Context) {
         super.onAttach(context)
         App.appComponent.inject(this)
+    }
+
+    // Fork: The active page owns the toolbar after a horizontal transition.
+    protected fun restoreGlassToolbarOnPaging(view: View) {
+        if (!GlassBars.isSupported()) return
+        var pagerMoving = false
+        findViewPager(view).addOnPageChangeListener(object : ViewPager.SimpleOnPageChangeListener() {
+            override fun onPageScrollStateChanged(state: Int) {
+                pagerMoving = state != ViewPager.SCROLL_STATE_IDLE
+                GlassBars.onPagerTransition(activity, pagerMoving)
+            }
+
+            override fun onPageSelected(position: Int) {
+                GlassBars.onPagerTransition(activity, pagerMoving)
+            }
+        })
     }
 
     @CallSuper
