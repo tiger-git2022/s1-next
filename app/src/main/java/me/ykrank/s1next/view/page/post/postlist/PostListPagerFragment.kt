@@ -135,7 +135,10 @@ class PostListPagerFragment : BaseRecyclerViewFragment<PostsWrapper>(),
         super.onViewCreated(view, savedInstanceState)
 
         mRecyclerView = recyclerView
-        mLayoutManager = StartSnapLinearLayoutManager(requireActivity())
+        mLayoutManager = StartSnapLinearLayoutManager(requireActivity()).apply {
+            // Fork：帖子列表没有输入框；常开焦点滚动拦截，避免 ViewPager 切页结束 populate() 把焦点移到新页时触发 smoothScrollBy 往上滚
+            blockFocusScroll = true
+        }
         mRecyclerView.layoutManager = mLayoutManager
         // Fork：不在布局后把焦点还给之前的楼层，否则会再触发一次滚到该楼层（触屏上用不到）
         mRecyclerView.preserveFocusAfterLayout = false

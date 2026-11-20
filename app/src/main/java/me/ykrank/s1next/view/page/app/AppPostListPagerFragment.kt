@@ -95,7 +95,10 @@ class AppPostListPagerFragment : BaseRecyclerViewFragment<AppPostsWrapper>(),
         mQuotePid = bundle.getString(ARG_QUOTE_POST_ID)
         leavePageMsg("AppPostListPagerFragment##ThreadId:$mThreadId,PageNum:$mPageNum")
 
-        mLayoutManager = StartSnapLinearLayoutManager(requireActivity())
+        mLayoutManager = StartSnapLinearLayoutManager(requireActivity()).apply {
+            // Fork：同 PostListPagerFragment，屏蔽 ViewPager 切页或可选文本焦点转移引起的意外滚动
+            blockFocusScroll = true
+        }
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
