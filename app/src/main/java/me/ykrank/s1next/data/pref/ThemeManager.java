@@ -43,6 +43,7 @@ public final class ThemeManager {
 
     @ColorInt
     private volatile int mColorAccent;
+    private int mThemeNightMode;
     /**
      * Lazy Initialization.
      */
@@ -52,8 +53,7 @@ public final class ThemeManager {
         public Theme get() {
             Theme theme;
 
-            int currentNightMode = mContext.getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK;
-            if (currentNightMode == Configuration.UI_MODE_NIGHT_YES) {
+            if (mThemeNightMode == Configuration.UI_MODE_NIGHT_YES) {
                 theme = Theme.VALUES.get(mGeneralPreferencesProvider.getDarkThemeIndex());
             } else {
                 theme = Theme.VALUES.get(mGeneralPreferencesProvider.getThemeIndex());
@@ -68,12 +68,13 @@ public final class ThemeManager {
     public ThemeManager(Context context, GeneralPreferences generalPreferencesProvider) {
         this.mContext = context;
         this.mGeneralPreferencesProvider = generalPreferencesProvider;
+        mThemeNightMode = getSystemNightMode();
     }
 
     /**
      * Used for invalidating the theme preference if settings change.
      */
-    public void invalidateTheme() {
+    public synchronized void invalidateTheme() {
         mThemeMemorized = Suppliers.memoize(mThemeSupplier);
     }
 
@@ -86,8 +87,18 @@ public final class ThemeManager {
         mGeneralPreferencesProvider.setThemeIndex(index);
     }
 
-    public Theme getTheme() {
+    // Fork: A recreated Activity must resolve the theme for the new system mode.
+    public synchronized Theme getTheme() {
+        int nightMode = getSystemNightMode();
+        if (nightMode != mThemeNightMode) {
+            mThemeNightMode = nightMode;
+            invalidateTheme();
+        }
         return mThemeMemorized.get();
+    }
+
+    private int getSystemNightMode() {
+        return mContext.getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK;
     }
 
     @StyleRes
@@ -104,7 +115,7 @@ public final class ThemeManager {
         return Theme.VALUES.indexOf(getTheme());
     }
 
-    public void setThemeByIndex(int i) {
+    public synchronized void setThemeByIndex(int i) {
         Theme theme = Theme.VALUES.get(i);
         mThemeMemorized = Suppliers.ofInstance(theme);
         invalidateAccentColor(theme);
@@ -135,12 +146,14 @@ public final class ThemeManager {
 
     @ColorInt
     public int getGentleAccentColor() {
-        return ColorUtils.setAlphaComponent(mColorAccent, getSecondaryTextAlpha());
+        int alpha = getSecondaryTextAlpha();
+        return ColorUtils.setAlphaComponent(mColorAccent, alpha);
     }
 
     @ColorInt
     public int getHintOrDisabledGentleAccentColor() {
-        return ColorUtils.setAlphaComponent(mColorAccent, getHintOrDisabledTextAlpha());
+        int alpha = getHintOrDisabledTextAlpha();
+        return ColorUtils.setAlphaComponent(mColorAccent, alpha);
     }
 
     @BackgroundAlphaDef

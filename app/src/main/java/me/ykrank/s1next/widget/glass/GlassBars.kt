@@ -69,6 +69,29 @@ object GlassBars {
         private val listeners = mutableListOf<(Int) -> Unit>()
         private val barListeners = mutableListOf<(Boolean) -> Unit>()
         private var barShown = true
+        private var pagerMoving = false
+        private var replyRevealed = false
+        private var replyFab: FloatingActionButton? = null
+
+        internal fun setReplyFab(fab: FloatingActionButton) {
+            replyFab?.let { old -> (old.parent as? ViewGroup)?.removeView(old) }
+            replyFab = fab
+            replyRevealed = false
+            updateReplyFab()
+        }
+
+        private fun updateReplyFab() {
+            replyFab?.visibility = if (barShown && replyRevealed && !pagerMoving) View.VISIBLE else View.INVISIBLE
+        }
+
+        internal fun onPagerTransition(moving: Boolean) {
+            pagerMoving = moving
+            appBar.animate().cancel()
+            appBar.translationY = 0f
+            syncStatusStrip()
+            replyRevealed = false
+            notifyBar(true)
+        }
 
         /** 状态栏那条玻璃，跟着标题栏收起淡出 */
         internal var statusStrip: View? = null
@@ -84,19 +107,20 @@ object GlassBars {
 
         /** 列表滚动 dy 像素：上滑（dy > 0）收起标题栏，下滑放出，到顶时全显示 */
         internal fun onListScrolled(recyclerView: RecyclerView, dy: Int) {
-            if (!autoHide) return
+            if (!autoHide || pagerMoving) return
             appBar.animate().cancel()
             val max = hideDistance
             val t = if (!recyclerView.canScrollVertically(-1)) 0f
             else (appBar.translationY - dy).coerceIn(-max, 0f)
             appBar.translationY = t
             syncStatusStrip()
-            notifyBar(t > -max / 2)
+            if (dy < 0) replyRevealed = true
+            notifyBar(t >= -max / 2)
         }
 
         /** 停止滚动时吸附到全显示或全收起 */
         internal fun onListIdle(recyclerView: RecyclerView) {
-            if (!autoHide) return
+            if (!autoHide || pagerMoving) return
             val show = !recyclerView.canScrollVertically(-1) || appBar.translationY > -hideDistance / 2f
             appBar.animate().translationY(if (show) 0f else -hideDistance).setDuration(160)
                 .setUpdateListener { syncStatusStrip() }.start()
@@ -104,9 +128,11 @@ object GlassBars {
         }
 
         private fun notifyBar(shown: Boolean) {
-            if (shown == barShown) return
-            barShown = shown
-            barListeners.toList().forEach { it(shown) }
+            if (shown != barShown) {
+                barShown = shown
+                barListeners.toList().forEach { it(shown) }
+            }
+            updateReplyFab()
         }
 
         internal fun observeBar(listener: (Boolean) -> Unit) {
@@ -148,6 +174,10 @@ object GlassBars {
     /**
      * 列表被程序直接跳到某个位置后（楼层滚动条拖动），按是否在顶部同步玻璃标题栏和悬浮按钮的显示
      */
+    fun onPagerTransition(activity: Activity?, moving: Boolean) {
+        stateOf(activity)?.onPagerTransition(moving)
+    }
+
     fun onListJumped(recyclerView: RecyclerView) {
         stateOf(recyclerView.context.findActivity())?.onListIdle(recyclerView)
     }
@@ -259,7 +289,7 @@ object GlassBars {
      * （FloatingActionButton 不支持自定义背景，所以用跟随的 View。）
      */
     fun glassFab(fab: FloatingActionButton) {
-        val activity = fab.context as? Activity ?: return
+        val activity = fab.context.findActivity() ?: return
         val state = stateOf(activity) ?: return
         val parent = fab.parent as? ViewGroup ?: return
         val light = ColorUtils.calculateLuminance(state.tintColor) > 0.5
@@ -275,27 +305,37 @@ object GlassBars {
         parent.addView(glass, parent.indexOfChild(fab), CoordinatorLayout.LayoutParams(0, 0).apply {
             gravity = Gravity.TOP or Gravity.START
         })
-        // 和原版一样：标题栏收起时隐藏悬浮按钮，出来时显示
-        state.observeBar { shown -> if (shown) fab.show() else fab.hide() }
-        // 帖子详情：刚进去时不显示回复按钮，上滑收起标题栏后再下滑（标题栏重新出现）时才出来
         if (activity is PostListActivity) {
-            fab.visibility = View.GONE
+            // Fork: One owner for reply visibility; the XML behavior would also try to show it.
+            (fab.layoutParams as CoordinatorLayout.LayoutParams).behavior = null
+            state.setReplyFab(fab)
+        } else {
+            state.observeBar { shown -> if (shown) fab.show() else fab.hide() }
         }
-        fab.viewTreeObserver.addOnPreDrawListener {
-            val lp = glass.layoutParams
-            if (lp.width != fab.width || lp.height != fab.height) {
-                lp.width = fab.width
-                lp.height = fab.height
-                glass.layoutParams = lp
+        val sync = object : android.view.ViewTreeObserver.OnPreDrawListener {
+            override fun onPreDraw(): Boolean {
+                if (fab.parent !== parent) {
+                    parent.viewTreeObserver.removeOnPreDrawListener(this)
+                    glass.visibility = View.INVISIBLE
+                    parent.post { parent.removeView(glass) }
+                    return true
+                }
+                val lp = glass.layoutParams
+                if (lp.width != fab.width || lp.height != fab.height) {
+                    lp.width = fab.width
+                    lp.height = fab.height
+                    glass.layoutParams = lp
+                }
+                glass.x = fab.x
+                glass.y = fab.y
+                glass.scaleX = fab.scaleX
+                glass.scaleY = fab.scaleY
+                glass.alpha = fab.alpha
+                glass.visibility = fab.visibility
+                return true
             }
-            glass.x = fab.x
-            glass.y = fab.y
-            glass.scaleX = fab.scaleX
-            glass.scaleY = fab.scaleY
-            glass.alpha = fab.alpha
-            glass.visibility = fab.visibility
-            true
         }
+        parent.viewTreeObserver.addOnPreDrawListener(sync)
     }
 
     /**
@@ -460,23 +500,29 @@ object GlassBars {
                 it.layoutParams = lp
             }
         }
-        recyclerView.addOnScrollListener(object : RecyclerView.OnScrollListener() {
+        @Suppress("DEPRECATION") // The pager marks only its primary Fragment visible.
+        fun isActivePage() = fragment.userVisibleHint
+        val scrollListener = object : RecyclerView.OnScrollListener() {
             override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
                 followList()
                 // 只跟手指拖动和惯性滑动；程序跳转（恢复阅读进度、翻页）不收起
-                if (dy != 0 && recyclerView.scrollState != RecyclerView.SCROLL_STATE_IDLE) {
+                if (isActivePage() && dy != 0 && recyclerView.scrollState != RecyclerView.SCROLL_STATE_IDLE) {
                     state.onListScrolled(recyclerView, dy)
                 }
             }
 
             override fun onScrollStateChanged(recyclerView: RecyclerView, newState: Int) {
-                if (newState == RecyclerView.SCROLL_STATE_IDLE) state.onListIdle(recyclerView)
+                if (isActivePage() && newState == RecyclerView.SCROLL_STATE_IDLE) {
+                    state.onListIdle(recyclerView)
+                }
             }
-        })
+        }
+        recyclerView.addOnScrollListener(scrollListener)
         fragment.viewLifecycleOwner.lifecycle.addObserver(object : LifecycleEventObserver {
             override fun onStateChanged(source: androidx.lifecycle.LifecycleOwner, event: Lifecycle.Event) {
                 if (event == Lifecycle.Event.ON_DESTROY) {
                     remove()
+                    recyclerView.removeOnScrollListener(scrollListener)
                     recyclerView.viewTreeObserver.removeOnGlobalLayoutListener(globalLayout)
                 }
             }

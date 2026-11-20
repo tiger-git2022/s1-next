@@ -173,6 +173,7 @@ class PostListFragment : BaseViewPagerFragment(), PostListPagerFragment.PagerCal
         (activity as CoordinatorLayoutAnchorDelegate).setupFloatingActionButton(
             R.drawable.ic_insert_comment_black_24dp, this
         )
+        restoreGlassToolbarOnPaging(view)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {

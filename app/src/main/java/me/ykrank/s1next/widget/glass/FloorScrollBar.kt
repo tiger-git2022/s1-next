@@ -9,6 +9,8 @@ import android.graphics.Rect
 import android.graphics.RectF
 import android.util.TypedValue
 import android.view.MotionEvent
+import android.view.RoundedCorner
+import android.view.WindowInsets
 import android.view.View
 import android.view.ViewGroup
 import android.view.ViewTreeObserver
@@ -21,7 +23,7 @@ import androidx.recyclerview.widget.RecyclerView
 /**
  * Fork（tiger-git2022）：帖子页右侧的楼层滚动条，替代原来右边一列楼层数字（快速侧边栏），移植自自用 NGA 客户端。
  *
- * 滑动时出现一根细滚动条，一停下就淡出并往右滑走；按住滑块拖动时，旁边的气泡显示拖到第几楼 / 全帖共几楼。
+ * 滑动时出现一根细滚动条，一停下就淡出；按住滑块拖动时，旁边的气泡显示拖到第几楼 / 全帖共几楼。
  * 按住右边缘的滑块拖动可在本页内快速跳到某一楼（翻页仍用左右滑动）。隐藏时不拦截任何触摸。
  */
 @RequiresApi(Build.VERSION_CODES.S)
@@ -107,8 +109,7 @@ class FloorScrollBar private constructor(
     private val thumbWidth = dp(5f)
     private val thumbWidthDragging = dp(8f)
     private val thumbHeight = dp(40f)
-    private val trackWidth = dp(3f)
-    private val edgeMargin = dp(3f)
+    private val edgeMargin = dp(5f)
     private val verticalMargin = dp(8f)
 
     private val accent = TypedValue().let {
@@ -147,7 +148,6 @@ class FloorScrollBar private constructor(
 
     init {
         alpha = 0f
-        translationX = dp(16f)
         isClickable = false
         recyclerView.addOnScrollListener(object : RecyclerView.OnScrollListener() {
             override fun onScrolled(rv: RecyclerView, dx: Int, dy: Int) {
@@ -179,7 +179,7 @@ class FloorScrollBar private constructor(
         if (!shown) {
             shown = true
             animate().cancel()
-            animate().alpha(1f).translationX(0f).setDuration(120).start()
+            animate().alpha(1f).setDuration(120).start()
         }
     }
 
@@ -193,8 +193,7 @@ class FloorScrollBar private constructor(
         shown = false
         clearGestureExclusion()
         animate().cancel()
-        // 淡出的同时往右滑出
-        animate().alpha(0f).translationX(dp(16f)).setDuration(220).start()
+        animate().alpha(0f).setDuration(220).start()
     }
 
     override fun onDetachedFromWindow() {
@@ -204,8 +203,30 @@ class FloorScrollBar private constructor(
     }
 
     // 列表上下的内边距（玻璃标题栏、页码栏盖住的部分）不放滚动条
-    private val trackTop get() = verticalMargin + recyclerView.paddingTop
-    private val trackBottom get() = height - verticalMargin - recyclerView.paddingBottom
+    private var safeTop = 0f
+    private var safeBottom = 0f
+    private var safeRight = 0f
+    private val windowLocation = IntArray(2)
+
+    private fun updateSafeEdges() {
+        val insets = rootWindowInsets
+        getLocationInWindow(windowLocation)
+        val windowWidth = rootView.width
+        val windowHeight = rootView.height
+        val system = insets?.getInsets(WindowInsets.Type.systemBars() or WindowInsets.Type.displayCutout())
+        val topCorner = insets?.getRoundedCorner(RoundedCorner.POSITION_TOP_RIGHT)
+        val bottomCorner = insets?.getRoundedCorner(RoundedCorner.POSITION_BOTTOM_RIGHT)
+        safeTop = (maxOf(system?.top ?: 0, topCorner?.center?.y ?: 0) - windowLocation[1]).coerceAtLeast(0).toFloat()
+        val bottomLimit = minOf(windowHeight - (system?.bottom ?: 0),
+            bottomCorner?.center?.y ?: (windowHeight - dp(22f).toInt()))
+        safeBottom = (windowLocation[1] + height - bottomLimit).coerceAtLeast(0).toFloat()
+        safeRight = (windowLocation[0] + width - windowWidth + (system?.right ?: 0)).coerceAtLeast(0).toFloat()
+    }
+
+    private val trackTop get() = verticalMargin + maxOf(safeTop, recyclerView.paddingTop.toFloat())
+    private val trackBottom get() = height - verticalMargin - maxOf(safeBottom, recyclerView.paddingBottom.toFloat())
+    private val trackCenterX get() = width - safeRight - edgeMargin - thumbWidthDragging / 2
+    private val hasTrack get() = trackBottom - trackTop >= thumbHeight
 
     /**
      * 当前滚动位置对应的 0..1，按楼数算而不是按像素：
@@ -267,16 +288,20 @@ class FloorScrollBar private constructor(
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         if (alpha <= 0f || height <= 0) return
-        val right = width - edgeMargin
-
-        // 轨道
-        rect.set(right - trackWidth, trackTop, right, trackBottom)
-        canvas.drawRoundRect(rect, trackWidth / 2, trackWidth / 2, trackPaint)
-
-        // 滑块
-        val centerY = thumbCenterY()
+        updateSafeEdges()
+        if (!hasTrack) {
+            bubbleRect.setEmpty()
+            clearGestureExclusion()
+            return
+        }
+        // Fork: Track and thumb share the same center and width in both states.
         val w = if (dragging) thumbWidthDragging else thumbWidth
-        rect.set(right - w, centerY - thumbHeight / 2, right, centerY + thumbHeight / 2)
+        val centerX = trackCenterX
+        rect.set(centerX - w / 2, trackTop, centerX + w / 2, trackBottom)
+        canvas.drawRoundRect(rect, w / 2, w / 2, trackPaint)
+
+        val centerY = thumbCenterY()
+        rect.set(centerX - w / 2, centerY - thumbHeight / 2, centerX + w / 2, centerY + thumbHeight / 2)
         canvas.drawRoundRect(rect, w / 2, w / 2, thumbPaint)
 
         // 气泡：只在按住滑块拖动时显示（平时滑动浏览只有一根滚动条）
@@ -298,7 +323,7 @@ class FloorScrollBar private constructor(
         val textH = textPaint.fontMetrics.let { it.descent - it.ascent }
         val bw = currentW + totalW + padH * 2
         val bh = textH + padV * 2
-        val bRight = right - thumbWidthDragging - dp(6f)
+        val bRight = trackCenterX - thumbWidthDragging / 2 - dp(6f)
         val bTop = (centerY - bh / 2).coerceIn(0f, (height - bh).coerceAtLeast(0f))
         rect.set(bRight - bw, bTop, bRight, bTop + bh)
         bubbleRect.set(rect)
@@ -315,11 +340,11 @@ class FloorScrollBar private constructor(
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
                 // 只有显示出来时、按在滑块或气泡上才接管，其余触摸（比如每楼右边的菜单按钮）照常交给帖子列表
-                if (!shown || alpha < 0.5f) {
+                if (!hasTrack || !shown || alpha < 0.5f) {
                     return false
                 }
                 val centerY = thumbCenterY()
-                val onThumb = event.x >= width - touchWidth && Math.abs(event.y - centerY) <= thumbHeight * 1.5f
+                val onThumb = event.x >= trackCenterX - touchWidth + thumbWidthDragging / 2 && Math.abs(event.y - centerY) <= thumbHeight * 1.5f
                 val slop = dp(8f)
                 val onBubble = event.x >= bubbleRect.left - slop && event.x <= bubbleRect.right + slop &&
                         event.y >= bubbleRect.top - slop && event.y <= bubbleRect.bottom + slop
@@ -331,7 +356,6 @@ class FloorScrollBar private constructor(
                 shown = true
                 animate().cancel()
                 alpha = 1f
-                translationX = 0f
                 dragging = true
                 grabOffset = event.y - centerY
                 dragY = centerY
@@ -391,6 +415,7 @@ class FloorScrollBar private constructor(
     }
 
     private fun dragTo(y: Float) {
+        if (!hasTrack) return
         dragY = y.coerceIn(trackTop + thumbHeight / 2, trackBottom - thumbHeight / 2)
         scrollToFraction(fractionForY(dragY))
         invalidate()

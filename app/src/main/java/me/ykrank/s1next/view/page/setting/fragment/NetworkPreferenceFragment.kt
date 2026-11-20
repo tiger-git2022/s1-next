@@ -5,6 +5,7 @@ import android.os.Bundle
 import android.text.TextUtils
 import android.widget.Toast
 import androidx.lifecycle.lifecycleScope
+import androidx.preference.EditTextPreference
 import androidx.preference.Preference
 import com.github.ykrank.androidtools.util.L
 import com.github.ykrank.androidtools.widget.hostcheck.BaseDns
@@ -33,13 +34,25 @@ class NetworkPreferenceFragment : BasePreferenceFragment() {
 
         checkForceBaseUrlSummary()
         checkForceHostIpSummary()
+        findPreference<EditTextPreference>(getString(R.string.fork_fallback_forum_urls_key))?.apply {
+            setOnBindEditTextListener { it.isSingleLine = false }
+            setOnPreferenceChangeListener { _, value ->
+                val valid = AppHostUrl.parseFallbackForumUrls(value as? String) != null
+                if (!valid) Toast.makeText(context, R.string.fork_fallback_forum_urls_invalid, Toast.LENGTH_LONG).show()
+                valid
+            }
+        }
     }
 
     override fun onSharedPreferenceChanged(sharedPreferences: SharedPreferences, key: String?) {
-        if (key == getString(R.string.pref_key_force_base_url)) {
+        if (key == getString(R.string.fork_fallback_forum_urls_key)) {
+            baseHostUrl.refreshFallbackForumUrls()
+        } else if (key == getString(R.string.pref_key_force_base_url) ||
+            key == getString(R.string.pref_key_force_base_url_enabled)) {
             checkForceBaseUrlSummary()
             baseHostUrl.refreshBaseHostUrl()
-        } else if (key == getString(R.string.pref_key_force_host_ip)) {
+        } else if (key == getString(R.string.pref_key_force_host_ip) ||
+            key == getString(R.string.pref_key_force_host_ip_enabled)) {
             checkForceHostIpSummary()
             baseHostUrl.refreshForceHostIp()
         }

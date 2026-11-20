@@ -55,16 +55,13 @@ class ForumActivity : BaseActivity(), ToolbarDropDownInterface.Callback, Adapter
         setContentView(R.layout.activity_base)
 
         val fragmentManager = supportFragmentManager
-        if (savedInstanceState == null) {
-            restoreFromInterrupt()
-
-            fragment = ForumFragment()
-            fragmentManager.beginTransaction().add(R.id.frame_layout, fragment, ForumFragment.TAG)
-                .commit()
-        } else {
-            mSelectedPosition = savedInstanceState.getInt(STATE_SPINNER_SELECTED_POSITION)
-            fragment = fragmentManager.findFragmentByTag(ForumFragment.TAG) as ForumFragment
-        }
+        if (savedInstanceState == null) restoreFromInterrupt()
+        mSelectedPosition = savedInstanceState?.getInt(STATE_SPINNER_SELECTED_POSITION) ?: 0
+        fragment = (fragmentManager.findFragmentByTag(ForumFragment.TAG) as? ForumFragment)
+            ?: ForumFragment().also {
+                fragmentManager.beginTransaction().add(R.id.frame_layout, it, ForumFragment.TAG)
+                    .commit()
+            }
 
         onItemSelectedListener = fragment
     }
@@ -113,10 +110,13 @@ class ForumActivity : BaseActivity(), ToolbarDropDownInterface.Callback, Adapter
 
         val viewModel = binding.dropDownItemListViewModel
         viewModel?.let {
+            mSelectedPosition = mSelectedPosition.coerceIn(0, (dropDownItemList.size - 1).coerceAtLeast(0))
             it.selectedItemPosition = mSelectedPosition
             it.dropDownItemList.clear()
             it.dropDownItemList.addAll(dropDownItemList)
         }
+        // Fork: A restored selection may not dispatch onItemSelected again.
+        onItemSelectedListener.onToolbarDropDownItemSelected(mSelectedPosition)
 
     }
 

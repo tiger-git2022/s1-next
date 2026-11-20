@@ -3,7 +3,6 @@ package me.ykrank.s1next.view.activity
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
-import android.content.res.Configuration
 import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
@@ -212,15 +211,6 @@ abstract class BaseActivity : LibBaseActivity() {
             L.report(throwable)
         }
 
-    }
-
-    @CallSuper
-    override fun onConfigurationChanged(newConfig: Configuration) {
-        super.onConfigurationChanged(newConfig)
-
-        drawerLayoutDelegate?.onConfigurationChanged(newConfig)
-        mThemeManager.invalidateTheme()
-        mEventBus.postDefault(ThemeChangeEvent())
     }
 
     /**

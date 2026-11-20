@@ -20,4 +20,18 @@
     <string name="fork_update_failed" translatable="false">检查更新失败</string>
     <string name="fork_update_failed_message" translatable="false">连不上 GitHub（%1$s）。可以打开发布页手动下载。</string>
     <string name="fork_update_open_releases" translatable="false">打开发布页</string>
+    <string name="fork_fallback_forum_urls_key" translatable="false">fork_fallback_forum_urls</string>
+    <string name="fork_fallback_forum_urls" translatable="false">论坛备用线路</string>
+    <string name="fork_fallback_forum_urls_help" translatable="false">最多 3 条，每行一条。填写 stage1st.com 官方域名下的 HTTPS 论坛地址，以 / 结尾。</string>
+    <string name="fork_fallback_forum_urls_invalid" translatable="false">请输入最多 3 条有效的 HTTPS 论坛地址，仅支持 stage1st.com 及其子域名。</string>
+    <string name="fork_update_downloading" translatable="false">正在下载更新</string>
+    <string name="fork_update_download_paused" translatable="false">等待系统继续下载 · 已下载 %1$s</string>
+    <string name="fork_update_progress" translatable="false">%1$d%% · %2$s / %3$s</string>
+    <string name="fork_update_background" translatable="false">后台下载</string>
+    <string name="fork_update_cancel_download" translatable="false">取消下载</string>
+    <string name="fork_update_downloaded" translatable="false">更新已下载</string>
+    <string name="fork_update_install" translatable="false">安装</string>
+    <string name="fork_update_install_help" translatable="false">通过系统安装器覆盖安装。如果系统要求授权，请开启「允许安装未知应用」后返回，再点安装。</string>
+    <string name="fork_update_download_error" translatable="false">无法下载或打开更新</string>
+    <string name="fork_update_download_error_help" translatable="false">可重新检查更新，或打开发布页手动下载。%1$s</string>
 </resources>

@@ -11,12 +11,15 @@ import okhttp3.HttpUrl
  */
 
 class AppHostUrl(private val prefManager: NetworkPreferencesManager) : BaseHostUrl {
-    override var baseHttpUrl: HttpUrl? = null
-    override var hostIp: String? = null
+    @Volatile override var baseHttpUrl: HttpUrl? = null
+    @Volatile override var hostIp: String? = null
+    @Volatile var fallbackForumUrls: List<HttpUrl> = emptyList()
+        private set
 
     init {
         refreshBaseHostUrl()
         refreshForceHostIp()
+        refreshFallbackForumUrls()
     }
 
     fun refreshBaseHostUrl() {
@@ -31,11 +34,31 @@ class AppHostUrl(private val prefManager: NetworkPreferencesManager) : BaseHostU
         }
     }
 
+    fun refreshFallbackForumUrls() {
+        fallbackForumUrls = parseFallbackForumUrls(prefManager.fallbackForumUrls).orEmpty()
+    }
+
     fun refreshForceHostIp() {
         hostIp = if (prefManager.isForceHostIpEnable) {
             prefManager.forceHostIp
         } else {
             null
+        }
+    }
+
+    companion object {
+        const val MAX_FALLBACK_URLS = 3
+
+        fun parseFallbackForumUrls(value: String?): List<HttpUrl>? {
+            val entries = value.orEmpty().split(',', '\n', '\r').map { it.trim() }.filter { it.isNotEmpty() }.distinct()
+            if (entries.size > MAX_FALLBACK_URLS) return null
+            return entries.map { entry ->
+                val url = checkBaseHostUrl(entry) ?: return null
+                if (!url.isHttps || url.port != 443 || url.username.isNotEmpty() || url.password.isNotEmpty() ||
+                    url.query != null || url.fragment != null ||
+                    (url.host != Api.BASE_HOST && !url.host.endsWith(".${Api.BASE_HOST}"))) return null
+                url
+            }.distinct()
         }
     }
 }

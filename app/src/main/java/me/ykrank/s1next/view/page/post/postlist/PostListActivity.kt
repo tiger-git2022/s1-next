@@ -48,15 +48,16 @@ class PostListActivity : BaseActivity(), WifiBroadcastReceiver.NeedMonitorWifi {
 
         disableDrawerIndicator()
 
-        if (savedInstanceState == null) {
+        val thread = intent.getParcelableExtra<Thread>(ARG_THREAD)
+        threadId = thread?.id ?: intent.getParcelableExtra<ThreadLink>(ARG_THREAD_LINK)?.threadId
+        // Fork: uiMode recreation restores the Fragment, but also needs to reconnect Activity callbacks.
+        fragment = supportFragmentManager.findFragmentByTag(PostListFragment.TAG) as? PostListFragment
+        if (fragment == null) {
             val intent = intent
-            val thread = intent.getParcelableExtra<Thread>(ARG_THREAD)
             val progress = intent.getParcelableExtra<ReadProgress>(ARG_READ_PROGRESS)
             val authorId = intent.getStringExtra(ARG_AUTHOR_ID)
-            threadId = thread?.id
             if (thread == null) {//通过链接打开
                 val threadLink: ThreadLink = intent.getParcelableExtra(ARG_THREAD_LINK)!!
-                threadId = threadLink.threadId
                 fragment =
                     PostListFragment.newInstance(threadLink)
             } else if (!authorId.isNullOrEmpty()) { //指定用户

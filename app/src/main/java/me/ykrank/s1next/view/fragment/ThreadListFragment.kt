@@ -40,6 +40,7 @@ class ThreadListFragment : BaseViewPagerFragment(), ThreadListPagerFragment.Page
         mForumName = forum.name
         mForumId = forum.id!!
         leavePageMsg("ThreadListFragment##ForumName:$mForumName,ForumId:$mForumId")
+        restoreGlassToolbarOnPaging(view)
 
         if (savedInstanceState == null) {
             setTotalPageByThreads(forum.threads)

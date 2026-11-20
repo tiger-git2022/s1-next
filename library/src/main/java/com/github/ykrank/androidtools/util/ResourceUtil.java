@@ -73,7 +73,8 @@ public final class ResourceUtil {
         float sysFontScale = sysResources.getConfiguration().fontScale;
         float fontScale = sysFontScale * scale;
         if (config.fontScale != fontScale) {
-            Configuration newConfig = new Configuration(config);
+            // Fork: Override only fontScale so the context keeps following uiMode.
+            Configuration newConfig = new Configuration();
             newConfig.fontScale = fontScale;
             if (Build.VERSION.SDK_INT > Build.VERSION_CODES.N) {
                 return context.createConfigurationContext(newConfig);
