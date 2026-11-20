@@ -36,6 +36,7 @@ import me.ykrank.s1next.widget.hostcheck.NoticeCheckTask
 import me.ykrank.s1next.widget.net.AppData
 import me.ykrank.s1next.widget.net.AppDns
 import me.ykrank.s1next.widget.net.Data
+import me.ykrank.s1next.widget.net.ForegroundConnectionResetter
 import me.ykrank.s1next.widget.net.Image
 import okhttp3.CookieJar
 import okhttp3.Dns
@@ -64,23 +65,32 @@ class AppModule {
         return AppDns(context, baseHostUrl)
     }
 
+    @Provides
+    @AppLife
+    fun provideForegroundConnectionResetter(): ForegroundConnectionResetter {
+        return ForegroundConnectionResetter()
+    }
+
     @Data
     @Provides
     @AppLife
     fun providerDataOkHttpClientBuilder(
         cookieJar: CookieJar,
         baseHostUrl: AppHostUrl,
-        dns: Dns
+        dns: Dns,
+        connectionResetter: ForegroundConnectionResetter,
     ): OkHttpClient.Builder {
         val builder = OkHttpClient.Builder()
         builder.dns(dns)
+        // Fork: 缩短连接池空闲存活并在从后台切回时清理，避免复用半开死连接
+        builder.connectionPool(connectionResetter.createPool())
         builder.connectTimeout(10, TimeUnit.SECONDS)
         builder.writeTimeout(20, TimeUnit.SECONDS)
         builder.readTimeout(10, TimeUnit.SECONDS)
         builder.retryOnConnectionFailure(true)
         builder.cookieJar(cookieJar)
         builder.addInterceptor(ApiVersionInterceptor())
-        builder.addInterceptor(ForumReadRetryInterceptor(baseHostUrl))
+        builder.addInterceptor(ForumReadRetryInterceptor(baseHostUrl, connectionResetter))
         return builder
     }
 
@@ -89,9 +99,11 @@ class AppModule {
     @AppLife
     fun providerAppDataOkHttpClientBuilder(
         cookieJar: CookieJar,
-        user: User
+        user: User,
+        connectionResetter: ForegroundConnectionResetter,
     ): OkHttpClient.Builder {
         val builder = OkHttpClient.Builder()
+        builder.connectionPool(connectionResetter.createPool())
         builder.connectTimeout(10, TimeUnit.SECONDS)
         builder.writeTimeout(20, TimeUnit.SECONDS)
         builder.readTimeout(10, TimeUnit.SECONDS)
@@ -109,9 +121,11 @@ class AppModule {
         baseHostUrl: AppHostUrl,
         dns: Dns,
         progressManager: ProgressManager,
+        connectionResetter: ForegroundConnectionResetter,
     ): OkHttpClient.Builder {
         val builder = OkHttpClient.Builder()
         builder.dns(dns)
+        builder.connectionPool(connectionResetter.createPool())
         builder.connectTimeout(17, TimeUnit.SECONDS)
         builder.writeTimeout(17, TimeUnit.SECONDS)
         builder.readTimeout(77, TimeUnit.SECONDS)

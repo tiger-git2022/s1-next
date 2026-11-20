@@ -109,7 +109,7 @@ class FloorScrollBar private constructor(
     private val thumbWidth = dp(5f)
     private val thumbWidthDragging = dp(8f)
     private val thumbHeight = dp(40f)
-    private val edgeMargin = dp(5f)
+    private val edgeMargin = dp(1f)
     private val verticalMargin = dp(8f)
 
     private val accent = TypedValue().let {
@@ -211,7 +211,6 @@ class FloorScrollBar private constructor(
     private fun updateSafeEdges() {
         val insets = rootWindowInsets
         getLocationInWindow(windowLocation)
-        val windowWidth = rootView.width
         val windowHeight = rootView.height
         val system = insets?.getInsets(WindowInsets.Type.systemBars() or WindowInsets.Type.displayCutout())
         val topCorner = insets?.getRoundedCorner(RoundedCorner.POSITION_TOP_RIGHT)
@@ -220,7 +219,8 @@ class FloorScrollBar private constructor(
         val bottomLimit = minOf(windowHeight - (system?.bottom ?: 0),
             bottomCorner?.center?.y ?: (windowHeight - dp(22f).toInt()))
         safeBottom = (windowLocation[1] + height - bottomLimit).coerceAtLeast(0).toFloat()
-        safeRight = (windowLocation[0] + width - windowWidth + (system?.right ?: 0)).coerceAtLeast(0).toFloat()
+        // Fork: ViewPager 滑动时 windowLocation[0] 会临时大于 0，不能算进安全区，只避开右侧系统栏和挖孔
+        safeRight = (system?.right ?: 0).toFloat()
     }
 
     private val trackTop get() = verticalMargin + maxOf(safeTop, recyclerView.paddingTop.toFloat())

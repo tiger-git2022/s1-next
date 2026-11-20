@@ -1,6 +1,7 @@
 package me.ykrank.s1next.widget.hostcheck
 
 import me.ykrank.s1next.data.api.Api
+import me.ykrank.s1next.widget.net.ForegroundConnectionResetter
 import okhttp3.HttpUrl
 import okhttp3.Interceptor
 import okhttp3.Request
@@ -8,11 +9,16 @@ import okhttp3.Response
 import java.io.IOException
 import java.net.ProtocolException
 import java.util.concurrent.TimeUnit
-import javax.net.ssl.SSLException
+import javax.net.ssl.SSLHandshakeException
+import javax.net.ssl.SSLPeerUnverifiedException
 
 /** Fork: Bounded recovery for forum, thread-list, and post-list reads. */
-internal class ForumReadRetryInterceptor(private val host: AppHostUrl) : Interceptor {
+internal class ForumReadRetryInterceptor(
+    private val host: AppHostUrl,
+    private val connectionResetter: ForegroundConnectionResetter? = null,
+) : Interceptor {
     override fun intercept(chain: Interceptor.Chain): Response {
+        connectionResetter?.evictIfPending()
         val request = chain.request()
         if (request.url.host !in Api.HOST_LIST) return chain.proceed(request)
 
@@ -28,12 +34,18 @@ internal class ForumReadRetryInterceptor(private val host: AppHostUrl) : Interce
         val retryChain = chain.withConnectTimeout(5, TimeUnit.SECONDS)
         for ((index, attempt) in attempts.withIndex()) {
             val last = index == attempts.lastIndex
+            // 非最后一次尝试收紧 readTimeout，撞到偶发半开死连接时更快切到重试
+            val attemptChain = if (last) retryChain else retryChain.withReadTimeout(5, TimeUnit.SECONDS)
             try {
-                val response = retryChain.proceed(attempt)
+                val response = attemptChain.proceed(attempt)
                 if (last || response.code !in temporaryHttpErrors || chain.call().isCanceled()) return response
                 response.close()
             } catch (e: IOException) {
-                if (last || chain.call().isCanceled() || e is SSLException || e is ProtocolException) throw e
+                if (last || chain.call().isCanceled() || e is SSLHandshakeException ||
+                    e is SSLPeerUnverifiedException || e is ProtocolException
+                ) {
+                    throw e
+                }
             }
         }
         error("Empty forum route list")
