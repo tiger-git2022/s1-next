@@ -80,6 +80,6 @@ class ForegroundConnectionResetter(
 
     companion object {
         const val DEFAULT_KEEP_ALIVE_SECONDS = 60L
-        const val DEFAULT_BACKGROUND_EVICT_THRESHOLD_MS = 5_000L
+        const val DEFAULT_BACKGROUND_EVICT_THRESHOLD_MS = 2_000L
     }
 }

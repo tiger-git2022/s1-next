@@ -159,6 +159,8 @@ object GlassBars {
     private fun glassRefresh(refresh: SwipeRefreshLayout, recyclerView: RecyclerView, state: State) {
         val circle = refresh.children.firstOrNull { it is android.widget.ImageView } ?: return
         circle.elevation = 0f
+        // 不把刷新圈本身录进顶栏/悬浮按钮的玻璃快照
+        circle.setTag(R.id.fork_glass_exclude_from_snapshot, true)
         // 只模糊列表：转圈按钮自己就在内容区里，录整个内容区会把自己也录进去，渲染时无限递归闪退
         circle.background = GlassBarDrawable(
             circle, recyclerView, state.tintColor, state.backdropColor, oval = true
@@ -493,7 +495,9 @@ object GlassBars {
                     it.layoutParams = lp
                 }
             }
-            refresh?.setProgressViewOffset(false, top - (40 * density).toInt(), top + (64 * density).toInt())
+            if (refresh != null && !refresh.isRefreshing) {
+                refresh.setProgressViewOffset(false, top - (40 * density).toInt(), top + (64 * density).toInt())
+            }
             quickSideBar?.let {
                 val lp = it.layoutParams as ViewGroup.MarginLayoutParams
                 lp.topMargin = quickSideBarTop + top

@@ -96,6 +96,9 @@ class ThreadListPagerFragment : BaseRecyclerViewFragment<ThreadsWrapper>() {
         super.onDetach()
     }
 
+    // Fork: 版块帖子列表懒加载，进入第 1 页时不并发预拉第 2、3 页，避免同时多请求触发限流或拖慢首屏
+    override fun isLazyLoad(): Boolean = true
+
     override suspend fun getSource(loading: Int): Flow<Resource<ThreadsWrapper>>? {
         val source = apiCacheProvider.getThreadsWrapper(
             mForumId?:"", mTypeId, mPageNum,

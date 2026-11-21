@@ -2,4 +2,6 @@
 <resources>
     <!-- Fork：玻璃顶栏状态（GlassBars） -->
     <item name="fork_glass_state" type="id" />
+    <!-- Fork：不参与玻璃快照绘制的视图（如下拉刷新圈） -->
+    <item name="fork_glass_exclude_from_snapshot" type="id" />
 </resources>

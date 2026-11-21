@@ -185,6 +185,10 @@ class ThreadListActivity : BaseActivity(), ThreadListPagerFragment.SubForumsCall
     }
 
     private fun init() {
+        // Fork: 玻璃模式下分类标签栏已隐藏，进入版块时不再多发一次 getNewThreadInfo 抢占首屏并发
+        if (me.ykrank.s1next.widget.glass.GlassBars.isSupported()) {
+            return
+        }
         mS1Service.getNewThreadInfo(forum.id!!.toInt())
                 .map<List<ThreadType>>(ThreadType.Companion::fromXmlString)
                 .compose(RxJavaUtil.iOSingleTransformer())
