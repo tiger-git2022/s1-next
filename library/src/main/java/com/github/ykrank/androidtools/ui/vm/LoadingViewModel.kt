@@ -12,6 +12,15 @@ class LoadingViewModel : BaseObservable {
             notifyChange()
         }
 
+    // Fork: 首次加载期间若已先展示了缓存数据，允许用户立刻下拉刷新覆盖当前卡顿的请求
+    var hasData: Boolean = false
+        set(value) {
+            if (field != value) {
+                field = value
+                notifyChange()
+            }
+        }
+
 
     constructor()
     private constructor(source: Parcel) {
@@ -21,7 +30,7 @@ class LoadingViewModel : BaseObservable {
     val isSwipeRefresh: Boolean
         get() = loading == LOADING_SWIPE_REFRESH
     val isSwipeRefreshLayoutEnabled: Boolean
-        get() = loading != LOADING_FIRST_TIME && loading != LOADING_PULL_UP_TO_REFRESH
+        get() = (loading != LOADING_FIRST_TIME || hasData) && loading != LOADING_PULL_UP_TO_REFRESH
     val isLoadingFirstTime: Boolean
         get() = loading == LOADING_FIRST_TIME
 

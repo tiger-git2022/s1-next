@@ -297,6 +297,8 @@ abstract class LibBaseRecyclerViewFragment<D> : LibBaseFragment() {
     @CallSuper
     protected open fun onNext(data: D) {
         mBaseRecycleViewModel.data = data
+        // Fork: 已有数据（包括降级缓存）展示后即开放下拉刷新
+        mLoadingViewModel.hasData = true
     }
 
     @CallSuper
@@ -316,12 +318,18 @@ abstract class LibBaseRecyclerViewFragment<D> : LibBaseFragment() {
     @CallSuper
     protected open fun onError(throwable: Throwable) {
         L.print(throwable)
+        // Fork: 离屏预加载页（如 ViewPager 的非当前页）出错时，不要把「网络出错」提示弹到当前页上
+        if (!isAdded || !userVisibleHint) {
+            return
+        }
         GlobalData.provider.errorParser?.let {
             val context = context
             if (context != null) {
                 lifecycleScope.launch {
                     val msg = it.parse(context, throwable)
-                    showRetrySnackbar(msg)
+                    if (isAdded && userVisibleHint) {
+                        showRetrySnackbar(msg)
+                    }
                 }
             }
         }
