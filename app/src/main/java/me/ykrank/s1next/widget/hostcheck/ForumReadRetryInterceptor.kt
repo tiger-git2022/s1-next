@@ -7,6 +7,7 @@ import okhttp3.HttpUrl
 import okhttp3.Interceptor
 import okhttp3.Request
 import okhttp3.Response
+import okhttp3.ResponseBody.Companion.toResponseBody
 import java.io.IOException
 import java.net.ProtocolException
 import java.util.concurrent.TimeUnit
@@ -30,23 +31,29 @@ internal class ForumReadRetryInterceptor(
 
         val routes = (listOf(primary) + host.fallbackForumUrls.map { onRoute(request, it) } + request)
             .distinctBy { it.url }
-        // 无备用线路时允许最多 3 次尝试，覆盖后台切回前台瞬间网络解冻/5G 唤醒丢包
+        // 无备用线路时允许最多 3 次尝试，覆盖后台解冻、5G 唤醒及源站响应体卡顿丢包
         val attempts = if (routes.size == 1) listOf(primary, primary, primary) else routes
         for ((index, attempt) in attempts.withIndex()) {
             val last = index == attempts.lastIndex
-            // 非末次尝试收紧超时（连接 2.5s、读 4s），首包被静默丢弃时更快切到重试；末次保留 5s/10s 兜底慢网
-            val attemptChain = if (last) {
-                chain.withConnectTimeout(5, TimeUnit.SECONDS)
-            } else {
-                chain.withConnectTimeout(2500, TimeUnit.MILLISECONDS)
-                    .withReadTimeout(4000, TimeUnit.MILLISECONDS)
+            // 阶梯超时：首次 2.5s/3s 快速自救，二次 3s/5s，末次 5s/10s（默认）兜底慢网
+            val attemptChain = when {
+                last -> chain.withConnectTimeout(5, TimeUnit.SECONDS)
+                index == 0 -> chain.withConnectTimeout(2500, TimeUnit.MILLISECONDS)
+                    .withReadTimeout(3000, TimeUnit.MILLISECONDS)
+                else -> chain.withConnectTimeout(3000, TimeUnit.MILLISECONDS)
+                    .withReadTimeout(5000, TimeUnit.MILLISECONDS)
             }
             val startedAt = SystemClock.elapsedRealtime()
             try {
                 val response = attemptChain.proceed(attempt)
-                if (last || response.code !in temporaryHttpErrors || chain.call().isCanceled()) return response
-                response.close()
-                backoffIfFastFailure(startedAt, chain)
+                if (last || chain.call().isCanceled()) return response
+                if (response.code in temporaryHttpErrors) {
+                    response.close()
+                    backoffIfFastFailure(startedAt, chain)
+                    continue
+                }
+                // 在拦截器内完整读取正文，避免源站回完 HTTP 200 头后正文传输卡死逃逸重试
+                return bufferResponseBody(response)
             } catch (e: IOException) {
                 if (last || chain.call().isCanceled() || e is SSLHandshakeException ||
                     e is SSLPeerUnverifiedException || e is ProtocolException
@@ -57,6 +64,18 @@ internal class ForumReadRetryInterceptor(
             }
         }
         error("Empty forum route list")
+    }
+
+    private fun bufferResponseBody(response: Response): Response {
+        val body = response.body
+        if (body.contentLength() > MAX_BUFFERED_BYTES) {
+            return response
+        }
+        val contentType = body.contentType()
+        val bytes = body.use { it.bytes() }
+        return response.newBuilder()
+            .body(bytes.toResponseBody(contentType))
+            .build()
     }
 
     /** 后台恢复瞬间若系统网络规则尚未放行而毫秒级报错，短暂等待再重试，避免连续撞在解冻窗口里 */
@@ -85,5 +104,6 @@ internal class ForumReadRetryInterceptor(
         private val temporaryHttpErrors = setOf(500, 502, 503, 504)
         private const val FAST_FAILURE_MS = 500L
         private const val FAST_FAILURE_BACKOFF_MS = 300L
+        private const val MAX_BUFFERED_BYTES = 4L * 1024 * 1024
     }
 }
